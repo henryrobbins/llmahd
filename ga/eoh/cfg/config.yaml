@@ -1,0 +1,28 @@
+defaults:
+  - _self_
+  - problem: tsp_aco
+  - llm_client: openai
+  # [Optional] set different clients for operators
+  - llm_client@llm_long_ref: null
+  - llm_client@llm_short_ref: null
+  - llm_client@llm_crossover: null
+  - llm_client@llm_mutation: null
+  - override hydra/output: local
+  - override hydra/job_logging: colorlog
+  - override hydra/hydra_logging: colorlog
+
+hydra:
+  job:
+    name: ${problem.problem_name}-${problem.problem_type}
+    chdir: True
+
+# The chosen algorithm
+algorithm: eoh # other options are "eoh", "ael"; some problems may not support "ael"
+
+# Main GA loop parameters
+max_fe: 100 # maximum number of function evaluations
+pop_size: 10 # population size for GA
+init_pop_size: 30 # initial population size for GA
+mutation_rate: 0.5 # mutation rate for GA
+timeout: 20 # timeout for evaluation of a single heuristic
+diversify_init_pop: True # whether to diversify the initial population
