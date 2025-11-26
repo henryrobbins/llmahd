@@ -9,7 +9,7 @@ from utils.utils import init_client, print_hyperlink
 ROOT_DIR = os.getcwd()
 logging.basicConfig(level=logging.INFO)
 
-@hydra.main(version_base=None, config_path="ga/reevo/cfg", config_name="config")
+@hydra.main(version_base=None, config_path="cfg", config_name="reevo")
 def main(cfg):
     workspace_dir = Path.cwd()
     # Set logging level

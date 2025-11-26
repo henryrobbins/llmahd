@@ -9,7 +9,7 @@ from ga.mcts.ahd_adapter import AHD as LHH
 ROOT_DIR = os.getcwd()
 logging.basicConfig(level=logging.INFO)
 
-@hydra.main(version_base=None, config_path="ga/mcts/cfg", config_name="config")
+@hydra.main(version_base=None, config_path="cfg", config_name="mcts-ahd")
 def main(cfg):
     workspace_dir = Path.cwd()
     # Set logging level
