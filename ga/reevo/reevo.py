@@ -5,8 +5,15 @@ import numpy as np
 import os
 from omegaconf import DictConfig
 
-from utils.utils import *
 from utils.llm_client.base import BaseClient
+from utils.utils import (
+    file_to_string,
+    extract_code_from_generator,
+    filter_traceback,
+    filter_code,
+    block_until_running,
+    print_hyperlink,
+)
 
 
 class ReEvo:

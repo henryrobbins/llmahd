@@ -2,7 +2,7 @@ import logging
 import os
 import subprocess
 import re
-from typing import List, Any
+from typing import Any
 
 from utils.utils import block_until_running, file_to_string, filter_traceback
 

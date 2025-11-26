@@ -1,4 +1,3 @@
-import os
 from .original.eoh import EOH
 from .original.getParas import Paras
 from .original import prob_rank, pop_greedy

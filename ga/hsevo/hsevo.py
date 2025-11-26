@@ -1,9 +1,19 @@
+import os
+import logging
 import subprocess
 import numpy as np
 import json
 import tiktoken
 from datetime import datetime
-from utils.utils import *
+from utils.utils import (
+    file_to_string,
+    filter_traceback,
+    filter_code,
+    block_until_running,
+    extract_code_from_generator,
+    multi_chat_completion,
+    format_messages,
+)
 
 # from baselines.reevo.gls_tsp_adapt.gls_tsp_eval import Sandbox
 
