@@ -1,20 +1,14 @@
 import re
-import time
-from .interface_LLM import InterfaceAPI as InterfaceLLM
-import re
+from typing import Dict, List
+
+from utils.llm_client.base import BaseClient
 
 input = lambda: ...
 
 
 class Evolution:
 
-    def __init__(self, api_endpoint, api_key, model_LLM, debug_mode, prompts, **kwargs):
-        # -------------------- RZ: use local LLM --------------------
-        assert "use_local_llm" in kwargs
-        assert "url" in kwargs
-        self._use_local_llm = kwargs.get("use_local_llm")
-        self._url = kwargs.get("url")
-        # -----------------------------------------------------------
+    def __init__(self, api_endpoint, api_key, model_LLM, debug_mode, prompts):
 
         # set prompt interface
         # getprompts = GetPrompts()
@@ -43,14 +37,6 @@ class Evolution:
         self.api_key = api_key
         self.model_LLM = model_LLM
         self.debug_mode = debug_mode  # close prompt checking
-
-        # -------------------- RZ: use local LLM --------------------
-        if self._use_local_llm:
-            self.interface_llm = LocalLLM(self._url)
-        else:
-            self.interface_llm = InterfaceLLM(
-                self.api_endpoint, self.api_key, self.model_LLM, self.debug_mode
-            )
 
     def get_prompt_i1(self):
 
@@ -225,7 +211,7 @@ The description must be inside a brace. Next, implement it in Python as a functi
 
     def _get_alg(self, prompt_content):
 
-        response = self.interface_llm.get_response(prompt_content)
+        response = chat_completion(client=self.model_LLM, prompt_content=prompt_content)
 
         algorithm = re.findall(r"\{(.*)\}", response, re.DOTALL)
         if len(algorithm) == 0:
@@ -247,7 +233,9 @@ The description must be inside a brace. Next, implement it in Python as a functi
                     "Error: algorithm or code not identified, wait 1 seconds and retrying ... "
                 )
 
-            response = self.interface_llm.get_response(prompt_content)
+            response = chat_completion(
+                client=self.model_LLM, prompt_content=prompt_content
+            )
 
             algorithm = re.findall(r"\{(.*)\}", response, re.DOTALL)
             if len(algorithm) == 0:
@@ -382,3 +370,8 @@ The description must be inside a brace. Next, implement it in Python as a functi
             input()
 
         return [code_all, algorithm]
+
+
+def chat_completion(client: BaseClient, prompt_content: str) -> List[Dict]:
+    response = client.chat_completion(1, [{"role": "user", "content": prompt_content}])
+    return response[0].message.content
