@@ -5,6 +5,7 @@ import random
 import heapq
 import time
 
+from ga.eoh.original.eoh_evolution import EOHOperator
 from ga.eoh.original.getParas import Paras
 from ga.eoh.problem_adapter import Problem
 from ga.eoh.original.eoh_interface_EC import InterfaceEC
@@ -130,7 +131,9 @@ class EOH:
                 print(f" OP: {op}, [{i + 1} / {n_op}] ", end="|")
                 op_w = self.operator_weights[i]
                 if np.random.rand() < op_w:
-                    parents, offsprings = interface_ec.get_algorithm(population, op)
+                    parents, offsprings = interface_ec.get_algorithm(
+                        population, EOHOperator(op)
+                    )
                 self.add2pop(
                     population, offsprings
                 )  # Check duplication, and add the new offspring

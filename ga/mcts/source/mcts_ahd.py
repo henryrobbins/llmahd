@@ -4,6 +4,7 @@ import json
 import random
 from typing import List, Dict
 
+from ga.mcts.source.evolution import MCTSOperator
 from ga.mcts.source.mcts import MCTS, MCTSNode
 from ga.mcts.source.getParas import Paras
 from ga.mcts.problem_adapter import Problem
@@ -72,7 +73,7 @@ class MCTS_AHD:
                 path_set,
                 cur_node.raw_info,
                 cur_node.children_info,
-                option,
+                MCTSOperator.S1,
             )
         elif option == "e1":
             e1_set = [
@@ -88,7 +89,7 @@ class MCTS_AHD:
                 e1_set,
                 cur_node.raw_info,
                 cur_node.children_info,
-                option,
+                MCTSOperator.E1,
             )
         else:
             self.eval_times, offsprings = self.interface_ec.evolve_algorithm(
@@ -96,7 +97,7 @@ class MCTS_AHD:
                 nodes_set,
                 cur_node.raw_info,
                 cur_node.children_info,
-                option,
+                MCTSOperator(option),
             )
         if offsprings == None:
             print(f"Timeout emerge, no expanding with action {option}.")
@@ -156,7 +157,7 @@ class MCTS_AHD:
         # main loop
         n_op = len(self.operators)
         self.eval_times, brothers, offsprings = self.interface_ec.get_algorithm(
-            self.eval_times, brothers, "i1"
+            self.eval_times, brothers, MCTSOperator.I1
         )
         brothers.append(offsprings)
         nownode = MCTSNode(
@@ -175,7 +176,7 @@ class MCTS_AHD:
         nownode.subtree.append(nownode)
         for i in range(1, self.init_size):
             self.eval_times, brothers, offsprings = self.interface_ec.get_algorithm(
-                self.eval_times, brothers, "e1"
+                self.eval_times, brothers, MCTSOperator.E1
             )
             brothers.append(offsprings)
             nownode = MCTSNode(

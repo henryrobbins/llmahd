@@ -1,10 +1,18 @@
-import re
 from pathlib import Path
+from enum import StrEnum
 from typing import Dict, List
 
 from ga.eoh.original.prompts.problem import ProblemPrompts
 from utils.llm_client.base import BaseClient
-from utils.utils import file_to_string
+from utils.utils import file_to_string, parse_response
+
+
+class EOHOperator(StrEnum):
+    I1 = "i1"
+    E1 = "e1"
+    E2 = "e2"
+    M1 = "m1"
+    M2 = "m2"
 
 
 class Evolution:
@@ -30,7 +38,7 @@ class Evolution:
         self.llm_client = llm_client
 
     def get_prompt_i1(self):
-        i1 = file_to_string(self.prompts_dir / "i1.txt")
+        i1 = file_to_string(self.prompts_dir / f"{EOHOperator.I1.value}.txt")
         return i1.format(
             func_name=self.prompts.prompt_func_name,
             n_inputs=len(self.prompts.prompt_func_inputs),
@@ -55,7 +63,7 @@ class Evolution:
                 + "\n"
             )
 
-        e1 = file_to_string(self.prompts_dir / "e1.txt")
+        e1 = file_to_string(self.prompts_dir / f"{EOHOperator.E1.value}.txt")
         return e1.format(
             func_name=self.prompts.prompt_func_name,
             n_inputs=len(self.prompts.prompt_func_inputs),
@@ -82,7 +90,7 @@ class Evolution:
                 + "\n"
             )
 
-        e2 = file_to_string(self.prompts_dir / "e2.txt")
+        e2 = file_to_string(self.prompts_dir / f"{EOHOperator.E2.value}.txt")
         return e2.format(
             func_name=self.prompts.prompt_func_name,
             n_inputs=len(self.prompts.prompt_func_inputs),
@@ -96,7 +104,7 @@ class Evolution:
         )
 
     def get_prompt_m1(self, indiv1):
-        m1 = file_to_string(self.prompts_dir / "m1.txt")
+        m1 = file_to_string(self.prompts_dir / f"{EOHOperator.M1.value}.txt")
         return m1.format(
             func_name=self.prompts.prompt_func_name,
             n_inputs=len(self.prompts.prompt_func_inputs),
@@ -110,7 +118,7 @@ class Evolution:
         )
 
     def get_prompt_m2(self, indiv1):
-        m2 = file_to_string(self.prompts_dir / "m2.txt")
+        m2 = file_to_string(self.prompts_dir / f"{EOHOperator.M2.value}.txt")
         return m2.format(
             func_name=self.prompts.prompt_func_name,
             n_inputs=len(self.prompts.prompt_func_inputs),
@@ -128,48 +136,25 @@ class Evolution:
         response = chat_completion(
             client=self.llm_client, prompt_content=prompt_content
         )
-
-        algorithm = re.findall(r"\{(.*)\}", response, re.DOTALL)
-        if len(algorithm) == 0:
-            if "python" in response:
-                algorithm = re.findall(r"^.*?(?=python)", response, re.DOTALL)
-            elif "import" in response:
-                algorithm = re.findall(r"^.*?(?=import)", response, re.DOTALL)
-            else:
-                algorithm = re.findall(r"^.*?(?=def)", response, re.DOTALL)
-
-        code = re.findall(r"import.*return", response, re.DOTALL)
-        if len(code) == 0:
-            code = re.findall(r"def.*return", response, re.DOTALL)
+        algorithms, code = parse_response(response)
 
         n_retry = 1
-        while len(algorithm) == 0 or len(code) == 0:
+        while len(algorithms) == 0 or len(code) == 0:
 
             response = chat_completion(
                 client=self.llm_client, prompt_content=prompt_content
             )
 
-            algorithm = re.findall(r"\{(.*)\}", response, re.DOTALL)
-            if len(algorithm) == 0:
-                if "python" in response:
-                    algorithm = re.findall(r"^.*?(?=python)", response, re.DOTALL)
-                elif "import" in response:
-                    algorithm = re.findall(r"^.*?(?=import)", response, re.DOTALL)
-                else:
-                    algorithm = re.findall(r"^.*?(?=def)", response, re.DOTALL)
-
-            code = re.findall(r"import.*return", response, re.DOTALL)
-            if len(code) == 0:
-                code = re.findall(r"def.*return", response, re.DOTALL)
+            algorithms, code = parse_response(response)
 
             if n_retry > 3:
                 break
             n_retry += 1
 
-        algorithm = algorithm[0]
+        algorithm = algorithms[0]
         code = code[0]
 
-        code_all = code + " " + ", ".join(s for s in self.prompt_func_outputs)
+        code_all = code + " " + ", ".join(s for s in self.prompts.prompt_func_outputs)
 
         return [code_all, algorithm]
 

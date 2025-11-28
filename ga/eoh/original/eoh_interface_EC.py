@@ -3,7 +3,7 @@ from typing import List
 
 import numpy as np
 
-from ga.eoh.original.eoh_evolution import Evolution
+from ga.eoh.original.eoh_evolution import EOHOperator, Evolution
 from ga.eoh.problem_adapter import Problem
 from utils.llm_client.base import BaseClient
 
@@ -16,19 +16,6 @@ class InterfaceEC:
         self.m = m
         self.interface_eval = interface_prob
         self.evol = Evolution(llm_client=llm_client, prompts=interface_prob.prompts)
-
-    def code2file(self, code):
-        with open("./ael_alg.py", "w") as file:
-            # Write the code to the file
-            file.write(code)
-        return
-
-    def add2pop(self, population, offspring):
-        for ind in population:
-            if ind["objective"] == offspring["objective"]:
-                return False
-        population.append(offspring)
-        return True
 
     def check_duplicate(self, population, code):
         for ind in population:
@@ -43,7 +30,7 @@ class InterfaceEC:
         population = []
 
         for i in range(n_create):
-            _, pop = self.get_algorithm([], "i1")
+            _, pop = self.get_algorithm([], EOHOperator.I1)
             for p in pop:
                 population.append(p)
 
@@ -76,39 +63,40 @@ class InterfaceEC:
 
         return population
 
-    def _get_alg(self, pop, operator):
+    def _get_alg(self, pop, operator: EOHOperator):
+
         offspring = {
             "algorithm": None,
             "code": None,
             "objective": None,
             "other_inf": None,
         }
-        if operator == "i1":
-            parents = None
-            [offspring["code"], offspring["algorithm"]] = self.evol.i1()
-        elif operator == "e1":
-            parents = select_parents(pop, self.m)
-            [offspring["code"], offspring["algorithm"]] = self.evol.e1(parents)
-        elif operator == "e2":
-            parents = select_parents(pop, self.m)
-            [offspring["code"], offspring["algorithm"]] = self.evol.e2(parents)
-        elif operator == "m1":
-            parents = select_parents(pop, 1)
-            [offspring["code"], offspring["algorithm"]] = self.evol.m1(parents[0])
-        elif operator == "m2":
-            parents = select_parents(pop, 1)
-            [offspring["code"], offspring["algorithm"]] = self.evol.m2(parents[0])
-        else:
-            print(f"Evolution operator [{operator}] has not been implemented ! \n")
+
+        match operator:
+            case EOHOperator.I1:
+                parents = None
+                [offspring["code"], offspring["algorithm"]] = self.evol.i1()
+            case EOHOperator.E1:
+                parents = select_parents(pop, self.m)
+                [offspring["code"], offspring["algorithm"]] = self.evol.e1(parents)
+            case EOHOperator.E2:
+                parents = select_parents(pop, self.m)
+                [offspring["code"], offspring["algorithm"]] = self.evol.e2(parents)
+            case EOHOperator.M1:
+                parents = select_parents(pop, 1)
+                [offspring["code"], offspring["algorithm"]] = self.evol.m1(parents[0])
+            case EOHOperator.M2:
+                parents = select_parents(pop, 1)
+                [offspring["code"], offspring["algorithm"]] = self.evol.m2(parents[0])
+            case _:
+                print(f"Evolution operator [{operator}] has not been implemented ! \n")
 
         return parents, offspring
 
-    def get_offspring(self, pop, operator):
+    def get_offspring(self, pop, operator: EOHOperator):
 
         try:
             p, offspring = self._get_alg(pop, operator)
-
-            code = offspring["code"]
 
             n_retry = 1
             while self.check_duplicate(pop, offspring["code"]):
@@ -117,20 +105,15 @@ class InterfaceEC:
 
                 p, offspring = self._get_alg(pop, operator)
 
-                code = offspring["code"]
-
                 if n_retry > 1:
                     break
-
-            # obj = self.interface_eval.batch_evaluate([code],0)[0]
-            # offspring['objective'] = np.round(obj, 5)
 
         except Exception as e:
             print(e)
 
         return p, offspring
 
-    def get_algorithm(self, pop, operator):
+    def get_algorithm(self, pop, operator: EOHOperator):
         offspring_list = []
         for _ in range(self.pop_size):
             offspring = self.get_offspring(pop, operator)

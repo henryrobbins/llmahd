@@ -1,15 +1,24 @@
-import re
+from enum import StrEnum
 from pathlib import Path
 from typing import Dict, List
 
 from ga.mcts.source.prompts.problem import ProblemPrompts
 from utils.llm_client.base import BaseClient
-from utils.utils import file_to_string
+from utils.utils import file_to_string, parse_response
+
+
+class MCTSOperator(StrEnum):
+    I1 = "i1"
+    E1 = "e1"
+    E2 = "e2"
+    M1 = "m1"
+    M2 = "m2"
+    S1 = "s1"
 
 
 class Evolution:
 
-    def __init__(self, llm_client, prompts: ProblemPrompts):
+    def __init__(self, llm_client: BaseClient, prompts: ProblemPrompts):
 
         self.prompts_dir = Path(__file__).parent / "prompts"
         self.prompts = prompts
@@ -29,7 +38,7 @@ class Evolution:
 
         self.llm_client = llm_client
 
-    def get_prompt_post(self, code):
+    def get_prompt_post(self, code: str) -> str:
         post = file_to_string(self.prompts_dir / "post.txt")
         return post.format(
             prompt_task=self.prompts.prompt_task,
@@ -39,7 +48,7 @@ class Evolution:
             code=code,
         )
 
-    def get_prompt_refine(self, code, algorithm):
+    def get_prompt_refine(self, code: str, algorithm: str) -> str:
         refine = file_to_string(self.prompts_dir / "refine.txt")
         return refine.format(
             prompt_task=self.prompts.prompt_task,
@@ -50,7 +59,7 @@ class Evolution:
             code=code,
         )
 
-    def get_prompt_i1(self):
+    def get_prompt_i1(self) -> str:
         i1 = file_to_string(self.prompts_dir / "i1.txt")
         return i1.format(
             prompt_task=self.prompts.prompt_task,
@@ -63,7 +72,7 @@ class Evolution:
             other_inf=self.prompts.prompt_other_inf,
         )
 
-    def get_prompt_e1(self, indivs):
+    def get_prompt_e1(self, indivs: list[dict]) -> str:
         prompt_indiv = ""
         for i in range(len(indivs)):
             # print(indivs[i]['algorithm'] + f"Objective value: {indivs[i]['objective']}")
@@ -94,7 +103,7 @@ class Evolution:
             prompt_indiv=prompt_indiv,
         )
 
-    def get_prompt_e2(self, indivs):
+    def get_prompt_e2(self, indivs: list[dict]) -> str:
         prompt_indiv = ""
         for i in range(len(indivs)):
             # print(indivs[i]['algorithm'] + f"Objective value: {indivs[i]['objective']}")
@@ -125,7 +134,7 @@ class Evolution:
             prompt_indiv=prompt_indiv,
         )
 
-    def get_prompt_m1(self, indiv1):
+    def get_prompt_m1(self, indiv1: dict) -> str:
         m1 = file_to_string(self.prompts_dir / "m1.txt")
         return m1.format(
             prompt_task=self.prompts.prompt_task,
@@ -140,7 +149,7 @@ class Evolution:
             indiv_code=indiv1["code"],
         )
 
-    def get_prompt_m2(self, indiv1):
+    def get_prompt_m2(self, indiv1: dict) -> str:
         m2 = file_to_string(self.prompts_dir / "m2.txt")
         return m2.format(
             prompt_task=self.prompts.prompt_task,
@@ -155,7 +164,7 @@ class Evolution:
             indiv_code=indiv1["code"],
         )
 
-    def get_prompt_s1(self, indivs):
+    def get_prompt_s1(self, indivs: list[dict]) -> str:
         prompt_indiv = ""
         for i in range(len(indivs)):
             prompt_indiv = (
@@ -185,7 +194,7 @@ class Evolution:
             prompt_indiv=prompt_indiv,
         )
 
-    def _get_thought(self, prompt_content):
+    def _get_thought(self, prompt_content: str) -> str:
 
         response = chat_completion(
             client=self.llm_client, prompt_content=prompt_content, temperature=0
@@ -194,48 +203,24 @@ class Evolution:
         # algorithm = response.split(':')[-1]
         return response
 
-    def _get_alg(self, prompt_content):
+    def _get_alg(self, prompt_content: str) -> tuple[str, list[str]]:
 
         response = chat_completion(
             client=self.llm_client, prompt_content=prompt_content
         )
-
-        algorithm = re.search(r"\{(.*?)\}", response, re.DOTALL).group(1)
-        if len(algorithm) == 0:
-            if "python" in response:
-                algorithm = re.findall(r"^.*?(?=python)", response, re.DOTALL)
-            elif "import" in response:
-                algorithm = re.findall(r"^.*?(?=import)", response, re.DOTALL)
-            else:
-                algorithm = re.findall(r"^.*?(?=def)", response, re.DOTALL)
-
-        code = re.findall(r"import.*return", response, re.DOTALL)
-        if len(code) == 0:
-            code = re.findall(r"def.*return", response, re.DOTALL)
+        algorithms, code = parse_response(response)
 
         n_retry = 1
-        while len(algorithm) == 0 or len(code) == 0:
-            if self.debug_mode:
-                print(
-                    "Error: algorithm or code not identified, wait 1 seconds and retrying ... "
-                )
+        while len(algorithms) == 0 or len(code) == 0:
+            print(
+                "Error: algorithm or code not identified, wait 1 seconds and retrying ... "
+            )
 
             response = chat_completion(
                 client=self.llm_client, prompt_content=prompt_content
             )
 
-            algorithm = re.search(r"\{(.*?)\}", response, re.DOTALL).group(1)
-            if len(algorithm) == 0:
-                if "python" in response:
-                    algorithm = re.findall(r"^.*?(?=python)", response, re.DOTALL)
-                elif "import" in response:
-                    algorithm = re.findall(r"^.*?(?=import)", response, re.DOTALL)
-                else:
-                    algorithm = re.findall(r"^.*?(?=def)", response, re.DOTALL)
-
-            code = re.findall(r"import.*return", response, re.DOTALL)
-            if len(code) == 0:
-                code = re.findall(r"def.*return", response, re.DOTALL)
+            algorithms, code = parse_response(response)
 
             if n_retry > 3:
                 break
@@ -244,33 +229,33 @@ class Evolution:
         code = code[0]
         code_all = code + " " + ", ".join(s for s in self.prompts.prompt_func_outputs)
 
-        return [code_all, algorithm]
+        return code_all, algorithms
 
     def post_thought(self, code, algorithm):
         prompt_content = self.get_prompt_refine(code, algorithm)
         return self._get_thought(prompt_content)
 
-    def i1(self):
+    def i1(self) -> tuple[str, list[str]]:
         prompt_content = self.get_prompt_i1()
         return self._get_alg(prompt_content)
 
-    def e1(self, parents):
+    def e1(self, parents: list[dict]) -> tuple[str, list[str]]:
         prompt_content = self.get_prompt_e1(parents)
         return self._get_alg(prompt_content)
 
-    def e2(self, parents):
+    def e2(self, parents: list[dict]) -> tuple[str, list[str]]:
         prompt_content = self.get_prompt_e2(parents)
         return self._get_alg(prompt_content)
 
-    def m1(self, parents):
+    def m1(self, parents: dict) -> tuple[str, list[str]]:
         prompt_content = self.get_prompt_m1(parents)
         return self._get_alg(prompt_content)
 
-    def m2(self, parents):
+    def m2(self, parents: dict) -> tuple[str, list[str]]:
         prompt_content = self.get_prompt_m2(parents)
         return self._get_alg(prompt_content)
 
-    def s1(self, parents):
+    def s1(self, parents: list[dict]) -> tuple[str, list[str]]:
         prompt_content = self.get_prompt_s1(parents)
         return self._get_alg(prompt_content)
 
