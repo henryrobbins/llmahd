@@ -47,10 +47,6 @@ class EOH:
 
         self.exp_n_proc = paras.exp_n_proc
 
-        self.timeout = paras.eva_timeout
-
-        self.use_numba = paras.eva_numba_decorator
-
         print("- EoH parameters loaded -")
 
         # Set a random seed
@@ -72,22 +68,11 @@ class EOH:
 
         time_start = time.time()
 
-        # interface for large language model (llm)
-        # interface_llm = PromptLLMs(self.api_endpoint,self.api_key,self.llm_model,self.debug_mode)
-
-        # interface for evaluation
-        interface_prob = self.prob
-
-        # interface for ec operators
         interface_ec = InterfaceEC(
-            self.pop_size,
-            self.m,
-            self.llm_client,
-            self.debug_mode,
-            interface_prob,
-            n_p=self.exp_n_proc,
-            timeout=self.timeout,
-            use_numba=self.use_numba,
+            pop_size=self.pop_size,
+            m=self.m,
+            llm_client=self.llm_client,
+            interface_prob=self.prob,
         )
 
         # initialization

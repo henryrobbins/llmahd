@@ -12,7 +12,7 @@ from ga.mcts.source.evolution_interface import InterfaceEC
 
 class MCTS_AHD:
 
-    def __init__(self, paras: Paras, problem: Problem, **kwargs) -> None:
+    def __init__(self, paras: Paras, problem: Problem) -> None:
 
         self.prob = problem
         # LLM settings
@@ -43,12 +43,6 @@ class MCTS_AHD:
         self.load_pop_id = paras.exp_continue_id
 
         self.output_path = paras.exp_output_path
-
-        self.exp_n_proc = paras.exp_n_proc
-
-        self.timeout = paras.eva_timeout
-
-        self.use_numba = paras.eva_numba_decorator
 
         print("- MCTS-AHD parameters loaded -")
 
@@ -151,17 +145,10 @@ class MCTS_AHD:
     def run(self):
         print("- Initialization Start -")
 
-        interface_prob = self.prob
-
-        # interface for ec operators
         self.interface_ec = InterfaceEC(
-            self.m,
-            self.llm_client,
-            self.debug_mode,
-            interface_prob,
-            n_p=self.exp_n_proc,
-            timeout=self.timeout,
-            use_numba=self.use_numba,
+            m=self.m,
+            interface_prob=self.prob,
+            llm_client=self.llm_client,
         )
 
         brothers = []

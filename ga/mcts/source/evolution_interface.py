@@ -1,32 +1,20 @@
 import copy
 import random
-import warnings
 from typing import List
 
 import numpy as np
 
+from ga.mcts.problem_adapter import Problem
 from ga.mcts.source.evolution import Evolution
+from utils.llm_client.base import BaseClient
 
 
 class InterfaceEC:
-    def __init__(
-        self, m, llm_client, debug_mode, interface_prob, n_p, timeout, use_numba
-    ):
 
-        # LLM settings
-        self.interface_eval = interface_prob
-        prompts = interface_prob.prompts
-        self.evol = Evolution(llm_client, prompts)
+    def __init__(self, m: int, interface_prob: Problem, llm_client: BaseClient):
         self.m = m
-        self.debug = debug_mode
-
-        if not self.debug:
-            warnings.filterwarnings("ignore")
-
-        self.n_p = n_p
-
-        self.timeout = timeout
-        self.use_numba = use_numba
+        self.interface_eval = interface_prob
+        self.evol = Evolution(llm_client, interface_prob.prompts)
 
     def code2file(self, code):
         with open("./ael_alg.py", "w") as file:
@@ -37,8 +25,7 @@ class InterfaceEC:
     def add2pop(self, population, offspring):
         for ind in population:
             if ind["objective"] == offspring["objective"]:
-                if self.debug:
-                    print("duplicated result, retrying ... ")
+                print("duplicated result, retrying ... ")
                 return False
         population.append(offspring)
         return True
@@ -133,8 +120,7 @@ class InterfaceEC:
                 n_retry = 1
                 while self.check_duplicate(pop, offspring["code"]):
                     n_retry += 1
-                    if self.debug:
-                        print("duplicated code, wait 1 second and retrying ... ")
+                    print("duplicated code, wait 1 second and retrying ... ")
                     p, offspring = self._get_alg(pop, operator, father=father)
                     code = offspring["code"]
                     if n_retry > 1:
