@@ -6,49 +6,37 @@ import heapq
 import time
 
 from ga.eoh.original.eoh_evolution import EOHOperator
-from ga.eoh.original.getParas import Paras
+from ga.eoh.original.config import Config
 from ga.eoh.problem_adapter import Problem
 from ga.eoh.original.eoh_interface_EC import InterfaceEC
+from utils.llm_client.base import BaseClient
 
 
 class EOH:
 
-    def __init__(self, paras: Paras, problem: Problem) -> None:
+    def __init__(
+        self, config: Config, problem: Problem, llm_client: BaseClient
+    ) -> None:
 
         self.prob = problem
+        self.llm_client = llm_client
 
-        # LLM settings
-        self.llm_client = paras.llm_model
+        # EOH Configuration
+        self.pop_size = config.ec_pop_size
+        self.n_pop = config.ec_n_pop
+        self.operators = config.ec_operators
+        self.operator_weights = config.ec_operator_weights
+        assert config.ec_m <= self.pop_size or config.ec_m > 1
+        self.m = config.ec_m
 
-        # Experimental settings
-        self.pop_size = (
-            paras.ec_pop_size
-        )  # popopulation size, i.e., the number of algorithms in population
-        self.n_pop = paras.ec_n_pop  # number of populations
+        # Experiment Configuration
+        self.use_seed = config.exp_use_seed
+        self.seed_path = config.exp_seed_path
+        self.load_pop = config.exp_use_continue
+        self.load_pop_path = config.exp_continue_path
+        self.load_pop_id = config.exp_continue_id
 
-        self.operators = paras.ec_operators
-        self.operator_weights = paras.ec_operator_weights
-        if paras.ec_m > self.pop_size or paras.ec_m == 1:
-            print(
-                "m should not be larger than pop size or smaller than 2, adjust it to m=2"
-            )
-            paras.ec_m = 2
-        self.m = paras.ec_m
-
-        self.debug_mode = paras.exp_debug_mode  # if debug
-        self.ndelay = 1  # default
-
-        self.use_seed = paras.exp_use_seed
-        self.seed_path = paras.exp_seed_path
-        self.load_pop = paras.exp_use_continue
-        self.load_pop_path = paras.exp_continue_path
-        self.load_pop_id = paras.exp_continue_id
-
-        self.output_path = paras.exp_output_path
-
-        self.exp_n_proc = paras.exp_n_proc
-
-        print("- EoH parameters loaded -")
+        self.output_path = config.exp_output_path
 
         # Set a random seed
         random.seed(2024)
@@ -58,8 +46,7 @@ class EOH:
         for off in offspring:
             for ind in population:
                 if ind["objective"] == off["objective"]:
-                    if self.debug_mode:
-                        print("duplicated result, retrying ... ")
+                    print("duplicated result, retrying ... ")
             population.append(off)
 
     # run eoh

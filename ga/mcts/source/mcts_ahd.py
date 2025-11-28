@@ -6,46 +6,31 @@ from typing import List, Dict
 
 from ga.mcts.source.evolution import MCTSOperator
 from ga.mcts.source.mcts import MCTS, MCTSNode
-from ga.mcts.source.getParas import Paras
+from ga.mcts.source.config import Config
 from ga.mcts.problem_adapter import Problem
 from ga.mcts.source.evolution_interface import InterfaceEC
+from utils.llm_client.base import BaseClient
 
 
 class MCTS_AHD:
 
-    def __init__(self, paras: Paras, problem: Problem) -> None:
+    def __init__(self, paras: Config, problem: Problem, llm_client: BaseClient) -> None:
 
         self.prob = problem
-        # LLM settings
-        self.llm_client = paras.llm_model
+        self.llm_client = llm_client
 
-        # Experimental settings
-        self.init_size = (
-            paras.init_size
-        )  # popopulation size, i.e., the number of algorithms in population
-        self.pop_size = (
-            paras.pop_size
-        )  # popopulation size, i.e., the number of algorithms in population
+        # MCTS Configuration
+        self.init_size = paras.init_size
+        self.pop_size = paras.pop_size
         self.fe_max = paras.ec_fe_max  # function evaluation times
-        self.eval_times = 0  # number of populations
-
         self.operators = paras.ec_operators
         self.operator_weights = paras.ec_operator_weights
         paras.ec_m = 5
         self.m = paras.ec_m
 
-        self.debug_mode = paras.exp_debug_mode  # if debug
-        self.ndelay = 1  # default
-
-        self.use_seed = paras.exp_use_seed
-        self.seed_path = paras.exp_seed_path
-        self.load_pop = paras.exp_use_continue
-        self.load_pop_path = paras.exp_continue_path
-        self.load_pop_id = paras.exp_continue_id
-
         self.output_path = paras.exp_output_path
 
-        print("- MCTS-AHD parameters loaded -")
+        self.eval_times = 0  # number of populations
 
         # Set a random seed
         random.seed(2024)
@@ -54,8 +39,7 @@ class MCTS_AHD:
     def add2pop(self, population, offspring):
         for ind in population:
             if ind["algorithm"] == offspring["algorithm"]:
-                if self.debug_mode:
-                    print("duplicated result, retrying ... ")
+                print("duplicated result, retrying ... ")
         population.append(offspring)
 
     def expand(self, mcts, cur_node, nodes_set, option):
