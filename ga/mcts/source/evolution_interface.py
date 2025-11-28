@@ -48,7 +48,7 @@ class InterfaceEC:
         match operator:
             case MCTSOperator.I1:
                 parents = None
-                code, algorithm = self.evol.i1()
+                code, thought = self.evol.i1()
             case MCTSOperator.E1:
                 real_m = random.randint(2, self.m)
                 real_m = min(real_m, len(pop))
@@ -76,8 +76,7 @@ class InterfaceEC:
             case _:
                 print(f"Evolution operator [{operator}] has not been implemented ! \n")
 
-        if thought is not None:
-            algorithm = self.evol.post_thought(code, thought)
+        algorithm = self.evol.post_thought(code, thought)
 
         offspring = Heuristic(
             algorithm=algorithm,

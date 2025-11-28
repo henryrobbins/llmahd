@@ -1,7 +1,6 @@
-from .source.mcts_ahd import MCTS_AHD
-from .source.config import Config
-from .problem_adapter import Problem
-
+from ga.mcts.source.mcts_ahd import MCTS_AHD
+from ga.mcts.source.config import Config
+from ga.mcts.problem_adapter import Problem
 from utils.utils import init_client
 
 

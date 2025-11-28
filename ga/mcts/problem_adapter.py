@@ -47,7 +47,7 @@ def adapt_prompt(problem_cfg: dict, root_dir: str):
     return ProblemPrompts(
         prompt_task=cfg.description,
         prompt_func_name=prompt_func_name,
-        prompt_func_outputs=prompt_func_inputs,
+        prompt_func_inputs=prompt_func_inputs,
         prompt_func_outputs=prompt_func_outputs,
         prompt_inout_inf=func_desc,
         prompt_other_inf="",

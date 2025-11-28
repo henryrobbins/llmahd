@@ -163,9 +163,10 @@ class MCTS_AHD:
         mcts.backpropagate(nownode)
         nownode.subtree.append(nownode)
         for i in range(1, self.init_size):
-            self.eval_times, brothers, offspring = self.interface_ec.get_algorithm(
-                self.eval_times, brothers, MCTSOperator.E1
+            n_evals, brothers, offspring = self.interface_ec.get_algorithm(
+                brothers, MCTSOperator.E1
             )
+            self.eval_times += n_evals
             brothers.append(offspring)
             nownode = MCTSNode(
                 offspring.algorithm,
