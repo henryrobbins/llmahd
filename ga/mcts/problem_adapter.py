@@ -4,62 +4,54 @@ import subprocess
 import re
 from typing import Any
 
+from ga.mcts.source.prompts.problem import ProblemPrompts
 from utils.utils import block_until_running, file_to_string, filter_traceback
 
 
-class Prompts:
-    def __init__(self, problem_cfg, root_dir: str):
-        self.cfg = problem_cfg
-        self.problem = problem_cfg.problem_name
-        self.root_dir = root_dir
-        self.problem_type = problem_cfg.problem_type
-        self.prompt_dir = f"{self.root_dir}/prompts"
+def adapt_prompt(problem_cfg: dict, root_dir: str):
 
-        prompt_path_suffix = "_black_box" if self.problem_type == "black_box" else ""
-        problem_prompt_path = f"{self.prompt_dir}/{self.problem}{prompt_path_suffix}"
-        self.func_signature = (
-            file_to_string(f"{problem_prompt_path}/func_signature.txt")
-            .format(version=2)
-            .strip()
-        )
-        self.func_desc = file_to_string(f"{problem_prompt_path}/func_desc.txt")
+    cfg = problem_cfg
+    problem = problem_cfg.problem_name
+    root_dir = root_dir
+    problem_type = problem_cfg.problem_type
+    prompt_dir = f"{root_dir}/prompts"
 
-        match = re.match(r"^def +(.+?)\((.*)\) *-> *(.*?) *:", self.func_signature)
-        assert match is not None
-        self.prompt_func_name = match.group(1)
-        self.prompt_func_inputs = [
-            txt.split(":")[0].strip() for txt in match.group(2).split(",")
-        ]
-        if self.prompt_func_name.startswith("select_next_node"):
-            self.prompt_func_outputs = ["next_node"]
-        elif self.prompt_func_name.startswith("priority"):
-            self.prompt_func_outputs = ["priority"]
-        elif self.prompt_func_name.startswith("heuristics"):
-            self.prompt_func_outputs = ["heuristics_matrix"]
-        elif self.prompt_func_name.startswith("crossover"):
-            self.prompt_func_outputs = ["offsprings"]
-        elif self.prompt_func_name.startswith("utility"):
-            self.prompt_func_outputs = ["utility_value"]
-        else:
-            self.prompt_func_outputs = ["result"]
+    prompt_path_suffix = "_black_box" if problem_type == "black_box" else ""
+    problem_prompt_path = f"{prompt_dir}/{problem}{prompt_path_suffix}"
+    func_signature = (
+        file_to_string(f"{problem_prompt_path}/func_signature.txt")
+        .format(version=2)
+        .strip()
+    )
+    func_desc = file_to_string(f"{problem_prompt_path}/func_desc.txt")
 
-    def get_task(self):
-        return self.cfg.description
+    match = re.match(r"^def +(.+?)\((.*)\) *-> *(.*?) *:", func_signature)
+    assert match is not None
+    prompt_func_name = match.group(1)
+    prompt_func_inputs = [
+        txt.split(":")[0].strip() for txt in match.group(2).split(",")
+    ]
+    if prompt_func_name.startswith("select_next_node"):
+        prompt_func_outputs = ["next_node"]
+    elif prompt_func_name.startswith("priority"):
+        prompt_func_outputs = ["priority"]
+    elif prompt_func_name.startswith("heuristics"):
+        prompt_func_outputs = ["heuristics_matrix"]
+    elif prompt_func_name.startswith("crossover"):
+        prompt_func_outputs = ["offsprings"]
+    elif prompt_func_name.startswith("utility"):
+        prompt_func_outputs = ["utility_value"]
+    else:
+        prompt_func_outputs = ["result"]
 
-    def get_func_name(self):
-        return self.prompt_func_name
-
-    def get_func_inputs(self):
-        return self.prompt_func_inputs
-
-    def get_func_outputs(self):
-        return self.prompt_func_outputs
-
-    def get_inout_inf(self):
-        return self.func_desc
-
-    def get_other_inf(self):
-        return ""
+    return ProblemPrompts(
+        prompt_task=cfg.description,
+        prompt_func_name=prompt_func_name,
+        prompt_func_outputs=prompt_func_inputs,
+        prompt_func_outputs=prompt_func_outputs,
+        prompt_inout_inf=func_desc,
+        prompt_other_inf="",
+    )
 
 
 class Problem:
@@ -75,15 +67,15 @@ class Problem:
         self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
 
         if self.problem_type == "tsp_constructive":
-            from .original.prompts.tsp_greedy import GetPrompts
+            from ga.mcts.source.prompts.problem import TSP_CONSTRUCTIVE_PROMPTS
 
-            self.prompts = GetPrompts()
+            self.prompts = TSP_CONSTRUCTIVE_PROMPTS
         elif self.problem_type == "bpp_online":
-            from .original.prompts.bpp_online import GetPrompts
+            from ga.mcts.source.prompts.problem import BPP_ONLINE_PROMPTS
 
-            self.prompts = GetPrompts()
+            self.prompts = BPP_ONLINE_PROMPTS
         else:
-            self.prompts = Prompts(self.config.problem, root_dir)
+            self.prompts = adapt_prompt(self.config.problem, root_dir)
 
     def response_to_individual(self, code, response_id, file_name=None) -> dict:
         """

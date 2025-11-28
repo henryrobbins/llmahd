@@ -1,0 +1,7 @@
+{prompt_task}
+I have one algorithm with its code as follows. Algorithm description: {algorithm}
+Code:
+{code}
+Please assist me in creating a new algorithm that has a different form but can be a modified version of the algorithm provided.
+First, describe your new algorithm and main steps in one sentence. The description must be inside a brace. Next, implement it in Python as a function named {prompt_func_name}. This function should accept {n_inputs} input(s): {prompt_func_inputs}. The function should return {n_outputs} output(s): {prompt_func_outputs}.{prompt_inout_inf} {prompt_other_inf}
+Do not give additional explanations.

@@ -1,0 +1,4 @@
+{prompt_task}
+First, describe the design idea and main steps of your algorithm in one sentence. The description must be inside a brace outside the code implementation. Next, implement it in Python as a function named '{func_name}'.
+This function should accept {n_inputs} input(s): {joined_inputs}. The function should return {n_outputs} output(s): {joined_outputs}. {inout_inf} {other_inf}
+Do not give additional explanations.

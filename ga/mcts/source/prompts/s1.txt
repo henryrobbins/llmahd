@@ -1,0 +1,7 @@
+{prompt_task}
+I have {n_indivs} existing algorithms with their codes and objective values as follows:
+
+{prompt_indiv}Please help me create a new algorithm that is inspired by all the above algorithms with its objective value lower than any of them.
+Firstly, list some ideas in the provided algorithms that are clearly helpful to a better algorithm. Secondly, based on the listed ideas, describe the design idea and main steps of your new algorithm in one sentence. The description must be inside a brace. Thirdly, implement it in Python as a function named '{func_name}'.
+This function should accept {n_inputs} input(s): {joined_inputs}. The function should return {n_outputs} output(s): {joined_outputs}. {inout_inf} {other_inf}
+Do not give additional explanations.

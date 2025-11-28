@@ -1,0 +1,11 @@
+{prompt_task}
+I have one algorithm with its code as follows.
+
+Algorithm's description: {indiv_algorithm}
+Code:
+{indiv_code}
+
+Please create a new algorithm that has a different form but can be a modified version of the provided algorithm. Attempt to introduce more novel mechanisms and new equations or programme segments.
+First, describe the design idea based on the provided algorithm and main steps of the new algorithm in one sentence. The description must be inside a brace outside the code implementation. Next, implement it in Python as a function named '{func_name}'.
+This function should accept {n_inputs} input(s): {joined_inputs}. The function should return {n_outputs} output(s): {joined_outputs}. {inout_inf} {other_inf}
+Do not give additional explanations.

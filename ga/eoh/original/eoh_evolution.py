@@ -1,36 +1,35 @@
 import re
+from pathlib import Path
 from typing import Dict, List
 
+from ga.eoh.original.prompts.problem import ProblemPrompts
 from utils.llm_client.base import BaseClient
+from utils.utils import file_to_string
 
 input = lambda: ...
 
 
 class Evolution:
 
-    def __init__(self, api_endpoint, api_key, model_LLM, debug_mode, prompts):
+    def __init__(
+        self, api_endpoint, api_key, model_LLM, debug_mode, prompts: ProblemPrompts
+    ):
 
-        # set prompt interface
-        # getprompts = GetPrompts()
-        self.prompt_task = prompts.get_task()
-        self.prompt_func_name = prompts.get_func_name()
-        self.prompt_func_inputs = prompts.get_func_inputs()
-        self.prompt_func_outputs = prompts.get_func_outputs()
-        self.prompt_inout_inf = prompts.get_inout_inf()
-        self.prompt_other_inf = prompts.get_other_inf()
-        if len(self.prompt_func_inputs) > 1:
+        self.prompts_dir = Path(__file__).parent / "prompts"
+        self.prompts = prompts
+        if len(self.prompts.prompt_func_inputs) > 1:
             self.joined_inputs = ", ".join(
-                "'" + s + "'" for s in self.prompt_func_inputs
+                "'" + s + "'" for s in self.prompts.prompt_func_inputs
             )
         else:
-            self.joined_inputs = "'" + self.prompt_func_inputs[0] + "'"
+            self.joined_inputs = "'" + self.prompts.prompt_func_inputs[0] + "'"
 
-        if len(self.prompt_func_outputs) > 1:
+        if len(self.prompts.prompt_func_outputs) > 1:
             self.joined_outputs = ", ".join(
-                "'" + s + "'" for s in self.prompt_func_outputs
+                "'" + s + "'" for s in self.prompts.prompt_func_outputs
             )
         else:
-            self.joined_outputs = "'" + self.prompt_func_outputs[0] + "'"
+            self.joined_outputs = "'" + self.prompts.prompt_func_outputs[0] + "'"
 
         # set LLMs
         self.api_endpoint = api_endpoint
@@ -39,29 +38,16 @@ class Evolution:
         self.debug_mode = debug_mode  # close prompt checking
 
     def get_prompt_i1(self):
-
-        prompt_content = (
-            self.prompt_task + "\n"
-            "First, describe your new algorithm and main steps in one sentence. \
-The description must be inside a brace. Next, implement it in Python as a function named \
-"
-            + self.prompt_func_name
-            + ". This function should accept "
-            + str(len(self.prompt_func_inputs))
-            + " input(s): "
-            + self.joined_inputs
-            + ". The function should return "
-            + str(len(self.prompt_func_outputs))
-            + " output(s): "
-            + self.joined_outputs
-            + ". "
-            + self.prompt_inout_inf
-            + " "
-            + self.prompt_other_inf
-            + "\n"
-            + "Do not give additional explanations."
+        i1 = file_to_string(self.prompts_dir / "i1.txt")
+        return i1.format(
+            func_name=self.prompts.prompt_func_name,
+            n_inputs=len(self.prompts.prompt_func_inputs),
+            joined_inputs=self.joined_inputs,
+            n_outputs=len(self.prompts.prompt_func_outputs),
+            joined_outputs=self.joined_outputs,
+            inout_inf=self.prompts.prompt_inout_inf,
+            other_inf=self.prompts.prompt_other_inf,
         )
-        return prompt_content
 
     def get_prompt_e1(self, indivs):
         prompt_indiv = ""
@@ -77,33 +63,18 @@ The description must be inside a brace. Next, implement it in Python as a functi
                 + "\n"
             )
 
-        prompt_content = (
-            self.prompt_task + "\n"
-            "I have "
-            + str(len(indivs))
-            + " existing algorithms with their codes as follows: \n"
-            + prompt_indiv
-            + "Please help me create a new algorithm that has a totally different form from the given ones. \n"
-            "First, describe your new algorithm and main steps in one sentence. \
-The description must be inside a brace. Next, implement it in Python as a function named \
-"
-            + self.prompt_func_name
-            + ". This function should accept "
-            + str(len(self.prompt_func_inputs))
-            + " input(s): "
-            + self.joined_inputs
-            + ". The function should return "
-            + str(len(self.prompt_func_outputs))
-            + " output(s): "
-            + self.joined_outputs
-            + ". "
-            + self.prompt_inout_inf
-            + " "
-            + self.prompt_other_inf
-            + "\n"
-            + "Do not give additional explanations."
+        e1 = file_to_string(self.prompts_dir / "e1.txt")
+        return e1.format(
+            func_name=self.prompts.prompt_func_name,
+            n_inputs=len(self.prompts.prompt_func_inputs),
+            joined_inputs=self.joined_inputs,
+            n_outputs=len(self.prompts.prompt_func_outputs),
+            joined_outputs=self.joined_outputs,
+            inout_inf=self.prompts.prompt_inout_inf,
+            other_inf=self.prompts.prompt_other_inf,
+            n_indivs=len(indivs),
+            prompt_indiv=prompt_indiv,
         )
-        return prompt_content
 
     def get_prompt_e2(self, indivs):
         prompt_indiv = ""
@@ -119,95 +90,46 @@ The description must be inside a brace. Next, implement it in Python as a functi
                 + "\n"
             )
 
-        prompt_content = (
-            self.prompt_task + "\n"
-            "I have "
-            + str(len(indivs))
-            + " existing algorithms with their codes as follows: \n"
-            + prompt_indiv
-            + "Please help me create a new algorithm that has a totally different form from the given ones but can be motivated from them. \n"
-            "Firstly, identify the common backbone idea in the provided algorithms. Secondly, based on the backbone idea describe your new algorithm in one sentence. \
-The description must be inside a brace. Thirdly, implement it in Python as a function named \
-"
-            + self.prompt_func_name
-            + ". This function should accept "
-            + str(len(self.prompt_func_inputs))
-            + " input(s): "
-            + self.joined_inputs
-            + ". The function should return "
-            + str(len(self.prompt_func_outputs))
-            + " output(s): "
-            + self.joined_outputs
-            + ". "
-            + self.prompt_inout_inf
-            + " "
-            + self.prompt_other_inf
-            + "\n"
-            + "Do not give additional explanations."
+        e2 = file_to_string(self.prompts_dir / "e2.txt")
+        return e2.format(
+            func_name=self.prompts.prompt_func_name,
+            n_inputs=len(self.prompts.prompt_func_inputs),
+            joined_inputs=self.joined_inputs,
+            n_outputs=len(self.prompts.prompt_func_outputs),
+            joined_outputs=self.joined_outputs,
+            inout_inf=self.prompts.prompt_inout_inf,
+            other_inf=self.prompts.prompt_other_inf,
+            n_indivs=len(indivs),
+            prompt_indiv=prompt_indiv,
         )
-        return prompt_content
 
     def get_prompt_m1(self, indiv1):
-        prompt_content = (
-            self.prompt_task + "\n"
-            "I have one algorithm with its code as follows. \
-Algorithm description: "
-            + indiv1["algorithm"]
-            + "\n\
-Code:\n\
-"
-            + indiv1["code"]
-            + "\n\
-Please assist me in creating a new algorithm that has a different form but can be a modified version of the algorithm provided. \n"
-            "First, describe your new algorithm and main steps in one sentence. \
-The description must be inside a brace. Next, implement it in Python as a function named \
-"
-            + self.prompt_func_name
-            + ". This function should accept "
-            + str(len(self.prompt_func_inputs))
-            + " input(s): "
-            + self.joined_inputs
-            + ". The function should return "
-            + str(len(self.prompt_func_outputs))
-            + " output(s): "
-            + self.joined_outputs
-            + ". "
-            + self.prompt_inout_inf
-            + " "
-            + self.prompt_other_inf
-            + "\n"
-            + "Do not give additional explanations."
+        m1 = file_to_string(self.prompts_dir / "m1.txt")
+        return m1.format(
+            func_name=self.prompts.prompt_func_name,
+            n_inputs=len(self.prompts.prompt_func_inputs),
+            joined_inputs=self.joined_inputs,
+            n_outputs=len(self.prompts.prompt_func_outputs),
+            joined_outputs=self.joined_outputs,
+            inout_inf=self.prompts.prompt_inout_inf,
+            other_inf=self.prompts.prompt_other_inf,
+            indiv_algorithm=indiv1["algorithm"],
+            indiv_code=indiv1["code"],
         )
-        return prompt_content
 
     def get_prompt_m2(self, indiv1):
-        prompt_content = (
-            self.prompt_task + "\n"
-            "I have one algorithm with its code as follows. \
-Algorithm description: "
-            + indiv1["algorithm"]
-            + "\n\
-Code:\n\
-"
-            + indiv1["code"]
-            + "\n\
-Please identify the main algorithm parameters and assist me in creating a new algorithm that has a different parameter settings of the score function provided. \n"
-            "First, describe your new algorithm and main steps in one sentence. \
-The description must be inside a brace. Next, implement it in Python as a function named \
-"
-            + self.prompt_func_name
-            + ". This function should accept "
-            + str(len(self.prompt_func_inputs))
-            + " input(s): "
-            + self.joined_inputs
-            + ". "
-            + self.prompt_inout_inf
-            + " "
-            + self.prompt_other_inf
-            + "\n"
-            + "Do not give additional explanations."
+        m2 = file_to_string(self.prompts_dir / "m2.txt")
+        return m2.format(
+            func_name=self.prompts.prompt_func_name,
+            n_inputs=len(self.prompts.prompt_func_inputs),
+            joined_inputs=self.joined_inputs,
+            n_outputs=len(self.prompts.prompt_func_outputs),
+            joined_outputs=self.joined_outputs,
+            inout_inf=self.prompts.prompt_inout_inf,
+            other_inf=self.prompts.prompt_other_inf,
+            indiv_algorithm=indiv1["algorithm"],
+            indiv_code=indiv1["code"],
         )
-        return prompt_content
 
     def _get_alg(self, prompt_content):
 
