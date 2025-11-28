@@ -1,10 +1,10 @@
-import numpy as np
-import time
-from .eoh_evolution import Evolution
+from typing import List
 import warnings
-from joblib import Parallel, delayed
-import re
-import concurrent.futures
+import random
+
+import numpy as np
+
+from ga.eoh.original.eoh_evolution import Evolution
 
 
 class InterfaceEC:
@@ -17,7 +17,6 @@ class InterfaceEC:
         llm_model,
         debug_mode,
         interface_prob,
-        select,
         n_p,
         timeout,
         use_numba,
@@ -41,7 +40,6 @@ class InterfaceEC:
         if not self.debug:
             warnings.filterwarnings("ignore")
 
-        self.select = select
         self.n_p = n_p
 
         self.timeout = timeout
@@ -67,17 +65,6 @@ class InterfaceEC:
             if code == ind["code"]:
                 return True
         return False
-
-    # def population_management(self,pop):
-    #     # Delete the worst individual
-    #     pop_new = heapq.nsmallest(self.pop_size, pop, key=lambda x: x['objective'])
-    #     return pop_new
-
-    # def parent_selection(self,pop,m):
-    #     ranks = [i for i in range(len(pop))]
-    #     probs = [1 / (rank + 1 + len(pop)) for rank in ranks]
-    #     parents = random.choices(pop, weights=probs, k=m)
-    #     return parents
 
     def population_generation(self):
 
@@ -130,16 +117,16 @@ class InterfaceEC:
             parents = None
             [offspring["code"], offspring["algorithm"]] = self.evol.i1()
         elif operator == "e1":
-            parents = self.select.parent_selection(pop, self.m)
+            parents = select_parents(pop, self.m)
             [offspring["code"], offspring["algorithm"]] = self.evol.e1(parents)
         elif operator == "e2":
-            parents = self.select.parent_selection(pop, self.m)
+            parents = select_parents(pop, self.m)
             [offspring["code"], offspring["algorithm"]] = self.evol.e2(parents)
         elif operator == "m1":
-            parents = self.select.parent_selection(pop, 1)
+            parents = select_parents(pop, 1)
             [offspring["code"], offspring["algorithm"]] = self.evol.m1(parents[0])
         elif operator == "m2":
-            parents = self.select.parent_selection(pop, 1)
+            parents = select_parents(pop, 1)
             [offspring["code"], offspring["algorithm"]] = self.evol.m2(parents[0])
         else:
             print(f"Evolution operator [{operator}] has not been implemented ! \n")
@@ -198,3 +185,10 @@ class InterfaceEC:
             if self.debug:
                 print(f">>> check offsprings: \n {off}")
         return out_p, out_off
+
+
+def select_parents(pop: List, m: int) -> List:
+    ranks = [i for i in range(len(pop))]
+    probs = [1 / (rank + 1 + len(pop)) for rank in ranks]
+    parents = random.choices(pop, weights=probs, k=m)
+    return parents

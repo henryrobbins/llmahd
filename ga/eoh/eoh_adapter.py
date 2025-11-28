@@ -1,6 +1,5 @@
 from .original.eoh import EOH
 from .original.getParas import Paras
-from .original import prob_rank, pop_greedy
 from .problem_adapter import Problem
 
 from utils.utils import init_client
@@ -31,7 +30,7 @@ class EoH:
     def evolve(self):
         print("- Evolution Start -")
 
-        method = EOH(self.paras, self.problem, prob_rank, pop_greedy)
+        method = EOH(self.paras, self.problem)
 
         results = method.run()
 

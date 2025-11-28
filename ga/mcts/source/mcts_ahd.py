@@ -1,21 +1,20 @@
 import copy
-
-import numpy as np
+import heapq
 import json
 import random
-import time
+from typing import List, Dict
 
-from .mcts import MCTS, MCTSNode
-from .evolution_interface import InterfaceEC
+from ga.mcts.source.mcts import MCTS, MCTSNode
+from ga.mcts.source.getParas import Paras
+from ga.mcts.problem_adapter import Problem
+from ga.mcts.source.evolution_interface import InterfaceEC
 
 
-# main class for eoh
 class MCTS_AHD:
-    def __init__(self, paras, problem, select, manage, **kwargs):
+
+    def __init__(self, paras: Paras, problem: Problem, **kwargs) -> None:
 
         self.prob = problem
-        self.select = select
-        self.manage = manage
         # LLM settings
         self.use_local_llm = paras.llm_use_local
         self.url = paras.llm_local_url
@@ -86,7 +85,7 @@ class MCTS_AHD:
             while now.code != "Root":
                 path_set.append(now.raw_info)
                 now = copy.deepcopy(now.parent)
-            path_set = self.manage.population_management_s1(path_set, len(path_set))
+            path_set = manage_population_s1(path_set, len(path_set))
             if len(path_set) == 1:
                 return nodes_set
             self.eval_times, offsprings = self.interface_ec.evolve_algorithm(
@@ -145,7 +144,7 @@ class MCTS_AHD:
                 nodes_set, offsprings
             )  # Check duplication, and add the new offspring
             size_act = min(len(nodes_set), self.pop_size)
-            nodes_set = self.manage.population_management(nodes_set, size_act)
+            nodes_set = manage_population(nodes_set, size_act)
             nownode = MCTSNode(
                 offsprings["algorithm"],
                 offsprings["code"],
@@ -179,7 +178,6 @@ class MCTS_AHD:
             interface_prob,
             use_local_llm=self.use_local_llm,
             url=self.url,
-            select=self.select,
             n_p=self.exp_n_proc,
             timeout=self.timeout,
             use_numba=self.use_numba,
@@ -228,7 +226,7 @@ class MCTS_AHD:
             nownode.subtree.append(nownode)
         nodes_set = brothers
         size_act = min(len(nodes_set), self.pop_size)
-        nodes_set = self.manage.population_management(nodes_set, size_act)
+        nodes_set = manage_population(nodes_set, size_act)
         print("- Initialization Finished - Evolution Start -")
         while self.eval_times < self.fe_max:
             print(f"Current performances of MCTS nodes: {mcts.rank_list}")
@@ -278,3 +276,37 @@ class MCTS_AHD:
                 json.dump(nodes_set[0], f, indent=5)
 
         return nodes_set[0]["code"], filename
+
+
+def manage_population(pop_input: List[Dict], size: int) -> List[Dict]:
+    pop = [
+        individual for individual in pop_input if individual["objective"] is not None
+    ]
+    if size > len(pop):
+        size = len(pop)
+    unique_pop = []
+    unique_objectives = []
+    for individual in pop:
+        if individual["objective"] not in unique_objectives:
+            unique_pop.append(individual)
+            unique_objectives.append(individual["objective"])
+    # Delete the worst individual
+    pop_new = heapq.nsmallest(size, unique_pop, key=lambda x: x["objective"])
+    return pop_new
+
+
+def manage_population_s1(pop_input: List[Dict], size: int) -> List[Dict]:
+    pop = [
+        individual for individual in pop_input if individual["objective"] is not None
+    ]
+    if size > len(pop):
+        size = len(pop)
+    unique_pop = []
+    unique_algorithms = []
+    for individual in pop:
+        if individual["algorithm"] not in unique_algorithms:
+            unique_pop.append(individual)
+            unique_algorithms.append(individual["algorithm"])
+    # Delete the worst individual
+    pop_new = heapq.nlargest(size, unique_pop, key=lambda x: x["objective"])
+    return pop_new

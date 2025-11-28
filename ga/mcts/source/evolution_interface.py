@@ -1,14 +1,11 @@
 import copy
 import random
+import warnings
+from typing import List
 
 import numpy as np
-import time
 
-from .evolution import Evolution
-import warnings
-from joblib import Parallel, delayed
-import re
-import concurrent.futures
+from ga.mcts.source.evolution import Evolution
 
 
 class InterfaceEC:
@@ -20,7 +17,6 @@ class InterfaceEC:
         llm_model,
         debug_mode,
         interface_prob,
-        select,
         n_p,
         timeout,
         use_numba,
@@ -42,7 +38,6 @@ class InterfaceEC:
         if not self.debug:
             warnings.filterwarnings("ignore")
 
-        self.select = select
         self.n_p = n_p
 
         self.timeout = timeout
@@ -116,7 +111,7 @@ class InterfaceEC:
         elif operator == "e1":
             real_m = random.randint(2, self.m)
             real_m = min(real_m, len(pop))
-            parents = self.select.parent_selection_e1(pop, real_m)
+            parents = select_parents_e1(pop, real_m)
             [offspring["code"], offspring["thought"]] = self.evol.e1(parents)
         elif operator == "e2":
             other = copy.deepcopy(pop)
@@ -125,7 +120,7 @@ class InterfaceEC:
             real_m = 1
             # real_m = random.randint(2, self.m) - 1
             # real_m = min(real_m, len(other))
-            parents = self.select.parent_selection(other, real_m)
+            parents = select_parents(other, real_m)
             parents.append(father)
             [offspring["code"], offspring["thought"]] = self.evol.e2(parents)
         elif operator == "m1":
@@ -193,3 +188,16 @@ class InterfaceEC:
 
             return eval_times, offspring
         return eval_times, None
+
+
+def select_parents(pop: List, m: int) -> List:
+    ranks = [i for i in range(len(pop))]
+    probs = [1 / (rank + 1 + len(pop)) for rank in ranks]
+    parents = random.choices(pop, weights=probs, k=m)
+    return parents
+
+
+def select_parents_e1(pop: List, m: int) -> List:
+    probs = [1 for i in range(len(pop))]
+    parents = random.choices(pop, weights=probs, k=m)
+    return parents

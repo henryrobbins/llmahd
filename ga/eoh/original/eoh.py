@@ -1,20 +1,20 @@
+from typing import Dict
 import numpy as np
 import json
 import random
+import heapq
 import time
 
-from .eoh_interface_EC import InterfaceEC
+from ga.eoh.original.getParas import Paras
+from ga.eoh.problem_adapter import Problem
+from ga.eoh.original.eoh_interface_EC import InterfaceEC
 
 
-# main class for eoh
 class EOH:
 
-    # initilization
-    def __init__(self, paras, problem, select, manage, **kwargs):
+    def __init__(self, paras: Paras, problem: Problem, **kwargs) -> None:
 
         self.prob = problem
-        self.select = select
-        self.manage = manage
 
         # LLM settings
         self.use_local_llm = paras.llm_use_local
@@ -104,7 +104,6 @@ class EOH:
             interface_prob,
             use_local_llm=self.use_local_llm,
             url=self.url,
-            select=self.select,
             n_p=self.exp_n_proc,
             timeout=self.timeout,
             use_numba=self.use_numba,
@@ -132,9 +131,7 @@ class EOH:
             else:  # create new population
                 print("creating initial population:")
                 population = interface_ec.population_generation()
-                population = self.manage.population_management(
-                    population, self.pop_size
-                )
+                population = manage_population(population, self.pop_size)
 
                 # print(len(population))
                 # if len(population)<self.pop_size:
@@ -183,7 +180,7 @@ class EOH:
                 #         json.dump(data, file, indent=5)
                 # populatin management
                 size_act = min(len(population), self.pop_size)
-                population = self.manage.population_management(population, size_act)
+                population = manage_population(population, size_act)
                 print()
 
             # Save population to a file
@@ -212,3 +209,18 @@ class EOH:
             print()
 
         return population[0]["code"], filename
+
+
+def manage_population(pop: Dict, size: int) -> Dict:
+    pop = [individual for individual in pop if individual["objective"] is not None]
+    if size > len(pop):
+        size = len(pop)
+    unique_pop = []
+    unique_objectives = []
+    for individual in pop:
+        if individual["objective"] not in unique_objectives:
+            unique_pop.append(individual)
+            unique_objectives.append(individual["objective"])
+    # Delete the worst individual
+    pop_new = heapq.nsmallest(size, unique_pop, key=lambda x: x["objective"])
+    return pop_new
