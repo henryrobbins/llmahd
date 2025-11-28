@@ -131,7 +131,7 @@ class Evolution:
             indiv_code=indiv1["code"],
         )
 
-    def _get_alg(self, prompt_content):
+    def _get_alg(self, prompt_content: str) -> tuple[str, str]:
 
         response = chat_completion(
             client=self.llm_client, prompt_content=prompt_content
@@ -156,25 +156,25 @@ class Evolution:
 
         code_all = code + " " + ", ".join(s for s in self.prompts.prompt_func_outputs)
 
-        return [code_all, algorithm]
+        return code_all, algorithm
 
-    def i1(self):
+    def i1(self) -> tuple[str, str]:
         prompt_content = self.get_prompt_i1()
         return self._get_alg(prompt_content)
 
-    def e1(self, parents):
+    def e1(self, parents) -> tuple[str, str]:
         prompt_content = self.get_prompt_e1(parents)
         return self._get_alg(prompt_content)
 
-    def e2(self, parents):
+    def e2(self, parents) -> tuple[str, str]:
         prompt_content = self.get_prompt_e2(parents)
         return self._get_alg(prompt_content)
 
-    def m1(self, parents):
+    def m1(self, parents) -> tuple[str, str]:
         prompt_content = self.get_prompt_m1(parents)
         return self._get_alg(prompt_content)
 
-    def m2(self, parents):
+    def m2(self, parents) -> tuple[str, str]:
         prompt_content = self.get_prompt_m2(parents)
         return self._get_alg(prompt_content)
 

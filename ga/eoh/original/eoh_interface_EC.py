@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import random
 from typing import List
 
@@ -6,6 +7,14 @@ import numpy as np
 from ga.eoh.original.eoh_evolution import EOHOperator, Evolution
 from ga.eoh.problem_adapter import Problem
 from utils.llm_client.base import BaseClient
+
+
+@dataclass
+class Heuristic:
+    algorithm: str
+    code: str
+    objective: float
+    other_inf: dict
 
 
 class InterfaceEC:
@@ -17,94 +26,83 @@ class InterfaceEC:
         self.interface_eval = interface_prob
         self.evol = Evolution(llm_client=llm_client, prompts=interface_prob.prompts)
 
-    def check_duplicate(self, population, code):
+    def check_duplicate(self, population: list[Heuristic], code: str) -> bool:
         for ind in population:
-            if code == ind["code"]:
+            if code == ind.code:
                 return True
         return False
 
-    def population_generation(self):
-
+    def population_generation(self) -> list[Heuristic]:
         n_create = 2
-
         population = []
-
-        for i in range(n_create):
+        for _ in range(n_create):
             _, pop = self.get_algorithm([], EOHOperator.I1)
             for p in pop:
                 population.append(p)
-
         return population
 
-    def population_generation_seed(self, seeds):
+    def population_generation_seed(self, seeds: list[Heuristic]) -> list[Heuristic]:
 
-        population = []
-
-        fitness = self.interface_eval.batch_evaluate([seed["code"] for seed in seeds])
-
+        population: list[Heuristic] = []
+        fitness = self.interface_eval.batch_evaluate([seed.code for seed in seeds])
         for i in range(len(seeds)):
-            try:
-                seed_alg = {
-                    "algorithm": seeds[i]["algorithm"],
-                    "code": seeds[i]["code"],
-                    "objective": None,
-                    "other_inf": None,
-                }
-
-                obj = np.array(fitness[i])
-                seed_alg["objective"] = np.round(obj, 5)
-                population.append(seed_alg)
-
-            except Exception as e:
-                print("Error in seed algorithm")
-                exit()
+            obj = np.array(fitness[i])
+            seed_alg = Heuristic(
+                algorithm=seeds[i].algorithm,
+                code=seeds[i].code,
+                objective=np.round(obj, 5),
+                other_inf={},
+            )
+            population.append(seed_alg)
 
         print("Initiliazation finished! Get " + str(len(seeds)) + " seed algorithms")
 
         return population
 
-    def _get_alg(self, pop, operator: EOHOperator):
-
-        offspring = {
-            "algorithm": None,
-            "code": None,
-            "objective": None,
-            "other_inf": None,
-        }
+    def _get_alg(
+        self, pop: list[Heuristic], operator: EOHOperator
+    ) -> tuple[list[Heuristic], Heuristic]:
 
         match operator:
             case EOHOperator.I1:
                 parents = None
-                [offspring["code"], offspring["algorithm"]] = self.evol.i1()
+                code, algorithm = self.evol.i1()
             case EOHOperator.E1:
                 parents = select_parents(pop, self.m)
-                [offspring["code"], offspring["algorithm"]] = self.evol.e1(parents)
+                code, algorithm = self.evol.e1(parents)
             case EOHOperator.E2:
                 parents = select_parents(pop, self.m)
-                [offspring["code"], offspring["algorithm"]] = self.evol.e2(parents)
+                code, algorithm = self.evol.e2(parents)
             case EOHOperator.M1:
                 parents = select_parents(pop, 1)
-                [offspring["code"], offspring["algorithm"]] = self.evol.m1(parents[0])
+                code, algorithm = self.evol.m1(parents[0])
             case EOHOperator.M2:
                 parents = select_parents(pop, 1)
-                [offspring["code"], offspring["algorithm"]] = self.evol.m2(parents[0])
+                code, algorithm = self.evol.m2(parents[0])
             case _:
-                print(f"Evolution operator [{operator}] has not been implemented ! \n")
+                raise ValueError(
+                    f"Evolution operator [{operator}] has not been implemented!"
+                )
+
+        offspring = Heuristic(
+            algorithm=algorithm,
+            code=code,
+            objective=None,
+            other_inf={},
+        )
 
         return parents, offspring
 
-    def get_offspring(self, pop, operator: EOHOperator):
+    def get_offspring(
+        self, pop: list[Heuristic], operator: EOHOperator
+    ) -> tuple[list[Heuristic], Heuristic]:
 
         try:
             p, offspring = self._get_alg(pop, operator)
-
             n_retry = 1
-            while self.check_duplicate(pop, offspring["code"]):
-
+            while self.check_duplicate(pop, offspring.code):
                 n_retry += 1
-
                 p, offspring = self._get_alg(pop, operator)
-
                 if n_retry > 1:
                     break
 
@@ -113,22 +111,24 @@ class InterfaceEC:
 
         return p, offspring
 
-    def get_algorithm(self, pop, operator: EOHOperator):
-        offspring_list = []
+    def get_algorithm(
+        self, pop: list[Heuristic], operator: EOHOperator
+    ) -> tuple[list[list[Heuristic]], list[Heuristic]]:
+        offspring_list: list[tuple[list[Heuristic], Heuristic]] = []
         for _ in range(self.pop_size):
-            offspring = self.get_offspring(pop, operator)
-            offspring_list.append(offspring)
+            p, offspring = self.get_offspring(pop, operator)
+            offspring_list.append((p, offspring))
 
         objs = self.interface_eval.batch_evaluate(
-            [offspring["code"] for _, offspring in offspring_list], 0
+            [offspring.code for _, offspring in offspring_list], 0
         )
-        for i, (p, offspring) in enumerate(offspring_list):
-            offspring["objective"] = np.round(objs[i], 5)
+        for i, (_, offspring) in enumerate(offspring_list):
+            offspring.objective = np.round(objs[i], 5)
 
         results = offspring_list
 
-        out_p = []
-        out_off = []
+        out_p: list[list[Heuristic]] = []
+        out_off: list[Heuristic] = []
 
         for p, off in results:
             out_p.append(p)
