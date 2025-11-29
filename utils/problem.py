@@ -1,4 +1,5 @@
 import os
+import re
 import yaml
 from dataclasses import dataclass
 
@@ -88,3 +89,49 @@ in literature to select the next node in each step.",
 'unvisited_nodes' are node IDs. 'distance_matrix' is the distance matrix of nodes.",
     prompt_other_inf="All are Numpy arrays.",
 )
+
+
+def adapt_prompt(problem_cfg: dict, root_dir: str):
+
+    cfg = problem_cfg
+    problem = problem_cfg["problem_name"]
+    root_dir = root_dir
+    problem_type = problem_cfg["problem_type"]
+    prompt_dir = f"{root_dir}/prompts"
+
+    prompt_path_suffix = "_black_box" if problem_type == "black_box" else ""
+    problem_prompt_path = f"{prompt_dir}/{problem}{prompt_path_suffix}"
+    func_signature = (
+        file_to_string(f"{problem_prompt_path}/func_signature.txt")
+        .format(version=2)
+        .strip()
+    )
+    func_desc = file_to_string(f"{problem_prompt_path}/func_desc.txt")
+
+    match = re.match(r"^def +(.+?)\((.*)\) *-> *(.*?) *:", func_signature)
+    assert match is not None
+    prompt_func_name = match.group(1)
+    prompt_func_inputs = [
+        txt.split(":")[0].strip() for txt in match.group(2).split(",")
+    ]
+    if prompt_func_name.startswith("select_next_node"):
+        prompt_func_outputs = ["next_node"]
+    elif prompt_func_name.startswith("priority"):
+        prompt_func_outputs = ["priority"]
+    elif prompt_func_name.startswith("heuristics"):
+        prompt_func_outputs = ["heuristics_matrix"]
+    elif prompt_func_name.startswith("crossover"):
+        prompt_func_outputs = ["offsprings"]
+    elif prompt_func_name.startswith("utility"):
+        prompt_func_outputs = ["utility_value"]
+    else:
+        prompt_func_outputs = ["result"]
+
+    return EOHProblemPrompts(
+        prompt_task=cfg["description"],
+        prompt_func_name=prompt_func_name,
+        prompt_func_inputs=prompt_func_inputs,
+        prompt_func_outputs=prompt_func_outputs,
+        prompt_inout_inf=func_desc,
+        prompt_other_inf="",
+    )
