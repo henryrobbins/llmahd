@@ -104,7 +104,15 @@ class HSEvo:
 
     def init_population(self) -> None:
         # Evaluate the seed function, and set it as Elite
-        self.population = self.batch_evaluate([self.prompts.seed_func])
+        code = extract_code_from_generator(self.prompts.seed_func).replace("v1", "v2")
+        seed_ind = HSEvoIndividual(
+            stdout_filepath=f"problem_iter{self.iteration}_stdout0.txt",
+            code_path=f"problem_iter{self.iteration}_code0.py",
+            code=code,
+            response_id=0,
+            tryHS=False,
+        )
+        self.population = self.batch_evaluate([seed_ind])
         self.seed_ind = self.population[0]
 
         # If seed function is invalid, stop
@@ -136,8 +144,13 @@ class HSEvo:
         )
         self.cal_usage_LLM(messages_lst, responses)
 
+        population = [
+            self.response_to_individual(response, response_id)
+            for response_id, response in enumerate(responses)
+        ]
+
         # Run code and evaluate population
-        population = self.batch_evaluate(responses)
+        population = self.batch_evaluate(population)
 
         # Update iteration
         self.population = population
@@ -189,24 +202,11 @@ class HSEvo:
         return individual
 
     def batch_evaluate(
-        self, codes: list[str], hs_try_idx: int | None = None
+        self, population: list[HSEvoIndividual]
     ) -> list[HSEvoIndividual]:
         """
         Evaluate population by running code in parallel and computing objective values.
         """
-
-        population = [
-            self.response_to_individual(
-                resp,
-                index,
-                file_name=(
-                    None
-                    if hs_try_idx is None
-                    else f"problem_iter{self.iteration}_hs{hs_try_idx}"
-                ),
-            )
-            for index, resp in enumerate(codes)
-        ]
 
         inner_runs = []
         # Run code to evaluate
@@ -487,6 +487,11 @@ class HSEvo:
             messages_lst, 1, self.model, self.temperature
         )
         self.cal_usage_LLM(messages_lst, response_lst)
+        population = [
+            self.response_to_individual(response, response_id)
+            for response_id, response in enumerate(response_lst)
+        ]
+        return response_lst
 
         return response_lst
 
@@ -512,8 +517,12 @@ class HSEvo:
             self.temperature,
         )
         self.cal_usage_LLM([messages], responses)
+        population = [
+            self.response_to_individual(response, response_id)
+            for response_id, response in enumerate(responses)
+        ]
 
-        return responses
+        return population
 
     def sel_individual_hs(self):
         candidate_hs = [
@@ -534,6 +543,21 @@ class HSEvo:
             )
         return harmony_memory
 
+    def responses_to_population(self, responses, try_hs_idx=None) -> list[dict]:
+        """
+        Convert responses to population. Applied to the initial population.
+        """
+        population = []
+        for response_id, response in enumerate(responses):
+            filename = (
+                None
+                if try_hs_idx is None
+                else f"problem_iter{self.iteration}_hs{try_hs_idx}"
+            )
+            individual = self.response_to_individual(response, response_id, filename)
+            population.append(individual)
+        return population
+
     def create_population_hs(
         self, str_code, parameter_ranges, harmony_memory, try_hs_idx=None
     ):
@@ -548,7 +572,8 @@ class HSEvo:
                     return None
             str_create_pop.append(tmp_str)
 
-        return self.batch_evaluate(str_create_pop, try_hs_idx)
+        population_hs = self.responses_to_population(str_create_pop, try_hs_idx)
+        return self.batch_evaluate(population_hs)
 
     def find_best_obj(self, population_hs):
         objs = [individual["obj"] for individual in population_hs]
@@ -682,16 +707,16 @@ class HSEvo:
             curr_code_path = self.elitist.code_path
 
             # Crossover
-            crossed_response_lst = self.crossover(selected_population)
+            crossed_population = self.crossover(selected_population)
             # Evaluate
-            self.population = self.batch_evaluate(crossed_response_lst)
+            self.population = self.batch_evaluate(crossed_population)
             # Update
             self.update_iter()
 
             # Mutate
-            mutated_response_lst = self.mutate()
+            mutated_population = self.mutate()
             # Evaluate
-            self.population.extend(self.batch_evaluate(mutated_response_lst))
+            self.population.extend(self.batch_evaluate(mutated_population))
             # Update
             self.update_iter()
 
