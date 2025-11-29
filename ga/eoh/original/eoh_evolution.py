@@ -21,33 +21,33 @@ class Evolution:
 
         self.prompts_dir = Path(__file__).parent / "prompts"
         self.prompts = prompts
-        if len(self.prompts.prompt_func_inputs) > 1:
+        if len(self.prompts.func_inputs) > 1:
             self.joined_inputs = ", ".join(
-                "'" + s + "'" for s in self.prompts.prompt_func_inputs
+                "'" + s + "'" for s in self.prompts.func_inputs
             )
         else:
-            self.joined_inputs = "'" + self.prompts.prompt_func_inputs[0] + "'"
+            self.joined_inputs = "'" + self.prompts.func_inputs[0] + "'"
 
-        if len(self.prompts.prompt_func_outputs) > 1:
+        if len(self.prompts.func_outputs) > 1:
             self.joined_outputs = ", ".join(
-                "'" + s + "'" for s in self.prompts.prompt_func_outputs
+                "'" + s + "'" for s in self.prompts.func_outputs
             )
         else:
-            self.joined_outputs = "'" + self.prompts.prompt_func_outputs[0] + "'"
+            self.joined_outputs = "'" + self.prompts.func_outputs[0] + "'"
 
         self.llm_client = llm_client
 
     def get_prompt_i1(self):
         i1 = file_to_string(self.prompts_dir / f"{EOHOperator.I1.value}.txt")
         return i1.format(
-            prompt_task=self.prompts.prompt_task,
-            prompt_func_name=self.prompts.prompt_func_name,
-            n_inputs=len(self.prompts.prompt_func_inputs),
+            prompt_task=self.prompts.problem_desc,
+            prompt_func_name=self.prompts.func_name,
+            n_inputs=len(self.prompts.func_inputs),
             prompt_func_inputs=self.joined_inputs,
-            n_outputs=len(self.prompts.prompt_func_outputs),
+            n_outputs=len(self.prompts.func_outputs),
             prompt_func_outputs=self.joined_outputs,
-            prompt_inout_inf=self.prompts.prompt_inout_inf,
-            prompt_other_inf=self.prompts.prompt_other_inf,
+            prompt_inout_inf=self.prompts.inout_inf,
+            prompt_other_inf=self.prompts.other_inf,
         )
 
     def get_prompt_e1(self, indivs):
@@ -66,14 +66,14 @@ class Evolution:
 
         e1 = file_to_string(self.prompts_dir / f"{EOHOperator.E1.value}.txt")
         return e1.format(
-            prompt_task=self.prompts.prompt_task,
-            prompt_func_name=self.prompts.prompt_func_name,
-            n_inputs=len(self.prompts.prompt_func_inputs),
+            prompt_task=self.prompts.problem_desc,
+            prompt_func_name=self.prompts.func_name,
+            n_inputs=len(self.prompts.func_inputs),
             prompt_func_inputs=self.joined_inputs,
-            n_outputs=len(self.prompts.prompt_func_outputs),
+            n_outputs=len(self.prompts.func_outputs),
             prompt_func_outputs=self.joined_outputs,
-            prompt_inout_inf=self.prompts.prompt_inout_inf,
-            prompt_other_inf=self.prompts.prompt_other_inf,
+            prompt_inout_inf=self.prompts.inout_inf,
+            prompt_other_inf=self.prompts.other_inf,
             n_indivs=len(indivs),
             prompt_indiv=prompt_indiv,
         )
@@ -94,14 +94,14 @@ class Evolution:
 
         e2 = file_to_string(self.prompts_dir / f"{EOHOperator.E2.value}.txt")
         return e2.format(
-            prompt_task=self.prompts.prompt_task,
-            prompt_func_name=self.prompts.prompt_func_name,
-            n_inputs=len(self.prompts.prompt_func_inputs),
+            prompt_task=self.prompts.problem_desc,
+            prompt_func_name=self.prompts.func_name,
+            n_inputs=len(self.prompts.func_inputs),
             prompt_func_inputs=self.joined_inputs,
-            n_outputs=len(self.prompts.prompt_func_outputs),
+            n_outputs=len(self.prompts.func_outputs),
             prompt_func_outputs=self.joined_outputs,
-            prompt_inout_inf=self.prompts.prompt_inout_inf,
-            prompt_other_inf=self.prompts.prompt_other_inf,
+            prompt_inout_inf=self.prompts.inout_inf,
+            prompt_other_inf=self.prompts.other_inf,
             n_indivs=len(indivs),
             prompt_indiv=prompt_indiv,
         )
@@ -109,14 +109,14 @@ class Evolution:
     def get_prompt_m1(self, indiv1):
         m1 = file_to_string(self.prompts_dir / f"{EOHOperator.M1.value}.txt")
         return m1.format(
-            prompt_task=self.prompts.prompt_task,
-            prompt_func_name=self.prompts.prompt_func_name,
-            n_inputs=len(self.prompts.prompt_func_inputs),
+            prompt_task=self.prompts.problem_desc,
+            prompt_func_name=self.prompts.func_name,
+            n_inputs=len(self.prompts.func_inputs),
             prompt_func_inputs=self.joined_inputs,
-            n_outputs=len(self.prompts.prompt_func_outputs),
+            n_outputs=len(self.prompts.func_outputs),
             prompt_func_outputs=self.joined_outputs,
-            prompt_inout_inf=self.prompts.prompt_inout_inf,
-            prompt_other_inf=self.prompts.prompt_other_inf,
+            prompt_inout_inf=self.prompts.inout_inf,
+            prompt_other_inf=self.prompts.other_inf,
             indiv_algorithm=indiv1["algorithm"],
             indiv_code=indiv1["code"],
         )
@@ -124,14 +124,14 @@ class Evolution:
     def get_prompt_m2(self, indiv1):
         m2 = file_to_string(self.prompts_dir / f"{EOHOperator.M2.value}.txt")
         return m2.format(
-            prompt_task=self.prompts.prompt_task,
-            prompt_func_name=self.prompts.prompt_func_name,
-            n_inputs=len(self.prompts.prompt_func_inputs),
+            prompt_task=self.prompts.problem_desc,
+            prompt_func_name=self.prompts.func_name,
+            n_inputs=len(self.prompts.func_inputs),
             prompt_func_inputs=self.joined_inputs,
-            n_outputs=len(self.prompts.prompt_func_outputs),
+            n_outputs=len(self.prompts.func_outputs),
             prompt_func_outputs=self.joined_outputs,
-            prompt_inout_inf=self.prompts.prompt_inout_inf,
-            prompt_other_inf=self.prompts.prompt_other_inf,
+            prompt_inout_inf=self.prompts.inout_inf,
+            prompt_other_inf=self.prompts.other_inf,
             indiv_algorithm=indiv1["algorithm"],
             indiv_code=indiv1["code"],
         )
@@ -159,7 +159,7 @@ class Evolution:
         algorithm = algorithms[0]
         code = code[0]
 
-        code_all = code + " " + ", ".join(s for s in self.prompts.prompt_func_outputs)
+        code_all = code + " " + ", ".join(s for s in self.prompts.func_outputs)
 
         return code_all, algorithm
 
