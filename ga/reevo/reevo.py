@@ -5,12 +5,12 @@ import numpy as np
 import os
 from omegaconf import DictConfig
 
+from ga.reevo.evolution import Evolution, ReEvoLLMClients
 from utils.llm_client.base import BaseClient
+from utils.problem import ProblemPrompts
 from utils.utils import (
-    file_to_string,
     extract_code_from_generator,
     filter_traceback,
-    filter_code,
     block_until_running,
     print_hyperlink,
 )
@@ -31,13 +31,36 @@ class ReEvo:
         mutation_llm: Optional[BaseClient] = None,
     ) -> None:
         self.cfg = cfg
-        self.generator_llm = generator_llm
-        self.reflector_llm = reflector_llm or generator_llm
 
-        self.short_reflector_llm = short_reflector_llm or self.reflector_llm
-        self.long_reflector_llm = long_reflector_llm or self.reflector_llm
-        self.crossover_llm = crossover_llm or generator_llm
-        self.mutation_llm = mutation_llm or generator_llm
+        self.problem = self.cfg.problem.problem_name
+        self.problem_size = self.cfg.problem.problem_size
+        self.obj_type = self.cfg.problem.obj_type
+        self.problem_type = self.cfg.problem.problem_type
+
+        self.root_dir = root_dir
+        self.prompt_dir = f"{self.root_dir}/prompts"
+        self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
+
+        self.prompts = ProblemPrompts.load_problem_prompts(
+            func_name=self.cfg.problem.func_name,
+            problem_desc=self.cfg.problem.description,
+            path=f"{self.prompt_dir}/{self.problem}",
+        )
+        self.evol = Evolution(
+            init_pop_size=self.cfg.init_pop_size,
+            pop_size=self.cfg.pop_size,
+            mutation_rate=self.cfg.mutation_rate,
+            root_dir=self.root_dir,
+            llm_clients=ReEvoLLMClients(
+                generator_llm=generator_llm,
+                reflector_llm=reflector_llm,
+                short_reflector_llm=short_reflector_llm,
+                long_reflector_llm=long_reflector_llm,
+                crossover_llm=crossover_llm,
+                mutation_llm=mutation_llm,
+            ),
+            prompts=self.prompts,
+        )
 
         self.root_dir = root_dir
 
@@ -50,91 +73,12 @@ class ReEvo:
         self.best_code_overall = None
         self.best_code_path_overall = None
 
-        self.init_prompt()
         self.init_population()
-
-    def init_prompt(self) -> None:
-        self.problem = self.cfg.problem.problem_name
-        self.problem_desc = self.cfg.problem.description
-        self.problem_size = self.cfg.problem.problem_size
-        self.func_name = self.cfg.problem.func_name
-        self.obj_type = self.cfg.problem.obj_type
-        self.problem_type = self.cfg.problem.problem_type
-
-        logging.info("Problem: " + self.problem)
-        logging.info("Problem description: " + self.problem_desc)
-        logging.info("Function name: " + self.func_name)
-
-        self.reevo_dir = f"{self.root_dir}/ga/reevo"
-        self.prompt_dir = f"{self.root_dir}/prompts"
-        self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
-
-        # Loading all text prompts
-        # Problem-specific prompt components
-        prompt_path_suffix = "_black_box" if self.problem_type == "black_box" else ""
-        problem_prompt_path = f"{self.prompt_dir}/{self.problem}{prompt_path_suffix}"
-        self.seed_func = file_to_string(f"{problem_prompt_path}/seed_func.txt")
-        self.func_signature = file_to_string(
-            f"{problem_prompt_path}/func_signature.txt"
-        )
-        self.func_desc = file_to_string(f"{problem_prompt_path}/func_desc.txt")
-        if os.path.exists(f"{problem_prompt_path}/external_knowledge.txt"):
-            self.external_knowledge = file_to_string(
-                f"{problem_prompt_path}/external_knowledge.txt"
-            )
-            self.long_term_reflection_str = self.external_knowledge
-        else:
-            self.external_knowledge = ""
-
-        # Common prompts
-        self.system_generator_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/system_generator.txt"
-        )
-        self.system_reflector_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/system_reflector.txt"
-        )
-        self.user_reflector_st_prompt = (
-            file_to_string(f"{self.reevo_dir}/prompts/user_reflector_st.txt")
-            if self.problem_type != "black_box"
-            else file_to_string(
-                f"{self.reevo_dir}/prompts/user_reflector_st_black_box.txt"
-            )
-        )  # shrot-term reflection
-        self.user_reflector_lt_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/user_reflector_lt.txt"
-        )  # long-term reflection
-        self.crossover_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/crossover.txt"
-        )
-        self.mutation_prompt = file_to_string(f"{self.reevo_dir}/prompts/mutation.txt")
-        self.user_generator_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/user_generator.txt"
-        ).format(
-            func_name=self.func_name,
-            problem_desc=self.problem_desc,
-            func_desc=self.func_desc,
-        )
-        self.seed_prompt = file_to_string(f"{self.reevo_dir}/prompts/seed.txt").format(
-            seed_func=self.seed_func,
-            func_name=self.func_name,
-        )
-
-        # Flag to print prompts
-        self.print_crossover_prompt = (
-            True  # Print crossover prompt for the first iteration
-        )
-        self.print_mutate_prompt = True  # Print mutate prompt for the first iteration
-        self.print_short_term_reflection_prompt = (
-            True  # Print short-term reflection prompt for the first iteration
-        )
-        self.print_long_term_reflection_prompt = (
-            True  # Print long-term reflection prompt for the first iteration
-        )
 
     def init_population(self) -> None:
         # Evaluate the seed function, and set it as Elite
         logging.info("Evaluating seed function...")
-        code = extract_code_from_generator(self.seed_func).replace("v1", "v2")
+        code = extract_code_from_generator(self.prompts.seed_func).replace("v1", "v2")
         logging.info("Seed function code: \n" + code)
         seed_ind = {
             "stdout_filepath": f"problem_iter{self.iteration}_stdout0.txt",
@@ -154,30 +98,8 @@ class ReEvo:
         self.update_iter()
 
         # Generate responses
-        system = self.system_generator_prompt
-        user = (
-            self.user_generator_prompt
-            + "\n"
-            + self.seed_prompt
-            + "\n"
-            + self.long_term_reflection_str
-        )
-        messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ]
-        logging.info(
-            "Initial Population Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
-        )
+        responses = self.evol.seed_population(self.long_term_reflection_str)
 
-        responses = self.generator_llm.multi_chat_completion(
-            [messages],
-            self.cfg.init_pop_size,
-            temperature=self.generator_llm.temperature + 0.3,
-        )  # Increase the temperature for diverse initial population
         population = [
             self.response_to_individual(response, response_id)
             for response_id, response in enumerate(responses)
@@ -435,103 +357,13 @@ class ReEvo:
                 return None
         return selected_population
 
-    def gen_short_term_reflection_prompt(
-        self, ind1: dict, ind2: dict
-    ) -> tuple[list[dict], str, str]:
-        """
-        Short-term reflection before crossovering two individuals.
-        """
-        if ind1["obj"] == ind2["obj"]:
-            print(ind1["code"], ind2["code"])
-            raise ValueError(
-                "Two individuals to crossover have the same objective value!"
-            )
-        # Determine which individual is better or worse
-        if ind1["obj"] < ind2["obj"]:
-            better_ind, worse_ind = ind1, ind2
-        else:  # robust in rare cases where two individuals have the same objective value
-            better_ind, worse_ind = ind2, ind1
-
-        worse_code = filter_code(worse_ind["code"])
-        better_code = filter_code(better_ind["code"])
-
-        system = self.system_reflector_prompt
-        user = self.user_reflector_st_prompt.format(
-            func_name=self.func_name,
-            func_desc=self.func_desc,
-            problem_desc=self.problem_desc,
-            worse_code=worse_code,
-            better_code=better_code,
-        )
-        message = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ]
-
-        # Print reflection prompt for the first iteration
-        if self.print_short_term_reflection_prompt:
-            logging.info(
-                "Short-term Reflection Prompt: \nSystem Prompt: \n"
-                + system
-                + "\nUser Prompt: \n"
-                + user
-            )
-            self.print_short_term_reflection_prompt = False
-        return message, worse_code, better_code
-
-    def short_term_reflection(
-        self, population: list[dict]
-    ) -> tuple[list[list[dict]], list[str], list[str]]:
-        """
-        Short-term reflection before crossovering two individuals.
-        """
-        messages_lst = []
-        worse_code_lst = []
-        better_code_lst = []
-        for i in range(0, len(population), 2):
-            # Select two individuals
-            parent_1 = population[i]
-            parent_2 = population[i + 1]
-
-            # Short-term reflection
-            messages, worse_code, better_code = self.gen_short_term_reflection_prompt(
-                parent_1, parent_2
-            )
-            messages_lst.append(messages)
-            worse_code_lst.append(worse_code)
-            better_code_lst.append(better_code)
-
-        # Asynchronously generate responses
-        response_lst = self.short_reflector_llm.multi_chat_completion(messages_lst)
-        return response_lst, worse_code_lst, better_code_lst
-
     def long_term_reflection(self, short_term_reflections: list[str]) -> None:
         """
         Long-term reflection before mutation.
         """
-        system = self.system_reflector_prompt
-        user = self.user_reflector_lt_prompt.format(
-            problem_desc=self.problem_desc,
-            prior_reflection=self.long_term_reflection_str,
-            new_reflection="\n".join(short_term_reflections),
+        self.long_term_reflection_str = self.evol.long_term_reflection(
+            short_term_reflections, self.long_term_reflection_str
         )
-        messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ]
-
-        if self.print_long_term_reflection_prompt:
-            logging.info(
-                "Long-term Reflection Prompt: \nSystem Prompt: \n"
-                + system
-                + "\nUser Prompt: \n"
-                + user
-            )
-            self.print_long_term_reflection_prompt = False
-
-        self.long_term_reflection_str = self.long_reflector_llm.multi_chat_completion(
-            [messages]
-        )[0]
 
         # Write reflections to file
         file_name = f"problem_iter{self.iteration}_short_term_reflections.txt"
@@ -545,44 +377,7 @@ class ReEvo:
     def crossover(
         self, short_term_reflection_tuple: tuple[list[list[dict]], list[str], list[str]]
     ) -> list[dict]:
-        reflection_content_lst, worse_code_lst, better_code_lst = (
-            short_term_reflection_tuple
-        )
-        messages_lst = []
-        for reflection, worse_code, better_code in zip(
-            reflection_content_lst, worse_code_lst, better_code_lst
-        ):
-            # Crossover
-            system = self.system_generator_prompt
-            func_signature0 = self.func_signature.format(version=0)
-            func_signature1 = self.func_signature.format(version=1)
-            user = self.crossover_prompt.format(
-                user_generator=self.user_generator_prompt,
-                func_signature0=func_signature0,
-                func_signature1=func_signature1,
-                worse_code=worse_code,
-                better_code=better_code,
-                reflection=reflection,
-                func_name=self.func_name,
-            )
-            messages = [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ]
-            messages_lst.append(messages)
-
-            # Print crossover prompt for the first iteration
-            if self.print_crossover_prompt:
-                logging.info(
-                    "Crossover Prompt: \nSystem Prompt: \n"
-                    + system
-                    + "\nUser Prompt: \n"
-                    + user
-                )
-                self.print_crossover_prompt = False
-
-        # Asynchronously generate responses
-        response_lst = self.crossover_llm.multi_chat_completion(messages_lst)
+        response_lst = self.evol.crossover(short_term_reflection_tuple)
         crossed_population = [
             self.response_to_individual(response, response_id)
             for response_id, response in enumerate(response_lst)
@@ -593,30 +388,7 @@ class ReEvo:
 
     def mutate(self) -> list[dict]:
         """Elitist-based mutation. We only mutate the best individual to generate n_pop new individuals."""
-        system = self.system_generator_prompt
-        func_signature1 = self.func_signature.format(version=1)
-        user = self.mutation_prompt.format(
-            user_generator=self.user_generator_prompt,
-            reflection=self.long_term_reflection_str + self.external_knowledge,
-            func_signature1=func_signature1,
-            elitist_code=filter_code(self.elitist["code"]),
-            func_name=self.func_name,
-        )
-        messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ]
-        if self.print_mutate_prompt:
-            logging.info(
-                "Mutation Prompt: \nSystem Prompt: \n"
-                + system
-                + "\nUser Prompt: \n"
-                + user
-            )
-            self.print_mutate_prompt = False
-        responses = self.mutation_llm.multi_chat_completion(
-            [messages], int(self.cfg.pop_size * self.mutation_rate)
-        )
+        responses = self.evol.mutate(self.long_term_reflection_str, self.elitist)
         population = [
             self.response_to_individual(response, response_id)
             for response_id, response in enumerate(responses)
@@ -640,7 +412,7 @@ class ReEvo:
             if selected_population is None:
                 raise RuntimeError("Selection failed. Please check the population.")
             # Short-term reflection
-            short_term_reflection_tuple = self.short_term_reflection(
+            short_term_reflection_tuple = self.evol.short_term_reflection(
                 selected_population
             )  # (response_lst, worse_code_lst, better_code_lst)
             # Crossover
