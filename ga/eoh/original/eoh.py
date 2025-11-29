@@ -7,7 +7,7 @@ import time
 from ga.eoh.original.eoh_evolution import EOHOperator
 from ga.eoh.original.config import Config
 from utils.problem import Problem
-from ga.eoh.original.eoh_interface_EC import Heuristic, InterfaceEC
+from ga.eoh.original.eoh_interface_EC import EOHIndividual, InterfaceEC
 from utils.llm_client.base import BaseClient
 
 
@@ -51,7 +51,7 @@ class EOH:
 
     def _load_seed_population(
         self, interface_ec: InterfaceEC
-    ) -> tuple[list[Heuristic], int]:
+    ) -> tuple[list[EOHIndividual], int]:
         with open(self.seed_path) as file:
             data = json.load(file)
         population = interface_ec.population_generation_seed(data)
@@ -61,7 +61,7 @@ class EOH:
         n_start = 0
         return population, n_start
 
-    def _load_population(self) -> tuple[list[Heuristic], int]:
+    def _load_population(self) -> tuple[list[EOHIndividual], int]:
         population = []
         with open(self.load_pop_path) as file:
             data = json.load(file)
@@ -73,7 +73,7 @@ class EOH:
 
     def _create_new_population(
         self, interface_ec: InterfaceEC
-    ) -> tuple[list[Heuristic], int]:
+    ) -> tuple[list[EOHIndividual], int]:
         population = interface_ec.population_generation()
         population = manage_population(population, self.pop_size)
 
@@ -92,7 +92,7 @@ class EOH:
 
     def _initialize_population(
         self, interface_ec: InterfaceEC
-    ) -> tuple[list[Heuristic], int]:
+    ) -> tuple[list[EOHIndividual], int]:
         if self.use_seed:
             return self._load_seed_population(interface_ec)
         if self.load_pop:
@@ -163,16 +163,16 @@ class EOH:
         return population[0]["code"], filename
 
 
-def manage_population(pop: list[Heuristic], size: int) -> list[Heuristic]:
-    pop = [individual for individual in pop if individual.objective is not None]
+def manage_population(pop: list[EOHIndividual], size: int) -> list[EOHIndividual]:
+    pop = [individual for individual in pop if individual.obj is not None]
     if size > len(pop):
         size = len(pop)
     unique_pop = []
     unique_objectives = []
     for individual in pop:
-        if individual.objective not in unique_objectives:
+        if individual.obj not in unique_objectives:
             unique_pop.append(individual)
-            unique_objectives.append(individual.objective)
+            unique_objectives.append(individual.obj)
     # Delete the worst individual
-    pop_new = heapq.nsmallest(size, unique_pop, key=lambda x: x.objective)
+    pop_new = heapq.nsmallest(size, unique_pop, key=lambda x: x.obj)
     return pop_new

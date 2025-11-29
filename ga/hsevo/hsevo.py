@@ -6,6 +6,7 @@ import numpy as np
 import json
 import tiktoken
 from ga.hsevo.evolution import Evolution
+from utils.individual import Individual
 from utils.problem import ProblemPrompts
 from utils.utils import (
     filter_traceback,
@@ -32,6 +33,11 @@ class HSEvoConfig:
     par: float = 0.5
     bandwidth: float = 0.2
     max_iter: int = 5
+
+
+@dataclass
+class HSEvoIndividual(Individual):
+    tryHS: bool = False
 
 
 class HSEvo:
@@ -102,7 +108,7 @@ class HSEvo:
         self.seed_ind = self.population[0]
 
         # If seed function is invalid, stop
-        if not self.seed_ind["exec_success"]:
+        if not self.seed_ind.exec_success:
             raise RuntimeError(
                 f"Seed function is invalid. Please check the stdout file in {os.getcwd()}."
             )
@@ -139,7 +145,7 @@ class HSEvo:
 
     def response_to_individual(
         self, response: str, response_id: int, file_name: str = None
-    ) -> dict:
+    ) -> HSEvoIndividual:
         """
         Convert response to individual
         """
@@ -161,27 +167,30 @@ class HSEvo:
             else file_name.rstrip(".txt") + "_stdout.txt"
         )
 
-        individual = {
-            "stdout_filepath": std_out_filepath,
-            "code_path": f"problem_iter{self.iteration}_code{response_id}.py",
-            "code": code,
-            "response_id": response_id,
-            "tryHS": False,
-        }
+        individual = HSEvoIndividual(
+            stdout_filepath=std_out_filepath,
+            code_path=f"problem_iter{self.iteration}_code{response_id}.py",
+            code=code,
+            response_id=response_id,
+            tryHS=False,
+        )
+
         return individual
 
-    def mark_invalid_individual(self, individual: dict, traceback_msg: str) -> dict:
+    def mark_invalid_individual(
+        self, individual: HSEvoIndividual, traceback_msg: str
+    ) -> HSEvoIndividual:
         """
         Mark an individual as invalid.
         """
-        individual["exec_success"] = False
-        individual["obj"] = float("inf")
-        individual["traceback_msg"] = traceback_msg
+        individual.exec_success = False
+        individual.obj = float("inf")
+        individual.traceback_msg = traceback_msg
         return individual
 
     def batch_evaluate(
         self, codes: list[str], hs_try_idx: int | None = None
-    ) -> list[dict]:
+    ) -> list[HSEvoIndividual]:
         """
         Evaluate population by running code in parallel and computing objective values.
         """
@@ -204,7 +213,7 @@ class HSEvo:
         for response_id in range(len(population)):
             self.function_evals += 1
             # Skip if response is invalid
-            if population[response_id]["code"] is None:
+            if population[response_id].code is None:
                 population[response_id] = self.mark_invalid_individual(
                     population[response_id], "Invalid response!"
                 )
@@ -243,19 +252,19 @@ class HSEvo:
                 inner_run.kill()
                 continue
 
-            stdout_filepath = individual["stdout_filepath"]
+            stdout_filepath = individual.stdout_filepath
             with open(stdout_filepath, "r") as f:  # read the stdout file
                 stdout_str = f.read()
             traceback_msg = filter_traceback(stdout_str)
 
             if traceback_msg == "":  # If execution has no error
                 try:
-                    individual["obj"] = (
+                    individual.obj = (
                         float(stdout_str.split("\n")[-2])
                         if self.prompts.obj_type == "min"
                         else -float(stdout_str.split("\n")[-2])
                     )
-                    individual["exec_success"] = True
+                    individual.exec_success = True
                 except:
                     population[response_id] = self.mark_invalid_individual(
                         population[response_id],
@@ -267,7 +276,7 @@ class HSEvo:
                 )
 
         # Log after all population is evaluated
-        valid_objs = [ind["obj"] for ind in population if ind["exec_success"]]
+        valid_objs = [ind.obj for ind in population if ind.exec_success]
         best_obj = min(valid_objs) if valid_objs else float("inf")
         logging.info(
             f"Eval={self.function_evals}, TokenIn={self.prompt_tokens}, TokenOut={self.completion_tokens}, MaxObj={best_obj}"
@@ -275,17 +284,17 @@ class HSEvo:
 
         return population
 
-    def _run_code(self, individual: dict, response_id) -> subprocess.Popen:
+    def _run_code(self, individual: Individual, response_id) -> subprocess.Popen:
         """
         Write code into a file and run eval script.
         """
         logging.debug(f"Iteration {self.iteration}: Processing Code Run {response_id}")
 
         with open(self.output_file, "w") as file:
-            file.writelines(individual["code"] + "\n")
+            file.writelines(individual.code + "\n")
 
         # Execute the python file with flags
-        with open(individual["stdout_filepath"], "w") as f:
+        with open(individual.stdout_filepath, "w") as f:
             eval_file_path = (
                 f"{self.root_dir}/problems/{self.prompts.problem_name}/eval.py"
                 if self.prompts.problem_type != "black_box"
@@ -305,7 +314,7 @@ class HSEvo:
             )
 
         block_until_running(
-            individual["stdout_filepath"],
+            individual.stdout_filepath,
             log_status=True,
             iter_num=self.iteration,
             response_id=response_id,
@@ -317,23 +326,23 @@ class HSEvo:
         Update after each iteration
         """
         population = self.population
-        objs = [individual["obj"] for individual in population]
+        objs = [individual.obj for individual in population]
         best_obj, best_sample_idx = min(objs), np.argmin(np.array(objs))
 
         # update best overall
         if self.best_obj_overall is None or best_obj < self.best_obj_overall:
             self.best_obj_overall = best_obj
-            self.best_code_overall = population[best_sample_idx]["code"]
-            self.best_code_path_overall = population[best_sample_idx]["code_path"]
+            self.best_code_overall = population[best_sample_idx].code
+            self.best_code_path_overall = population[best_sample_idx].code_path
 
         # update elitist
-        if self.elitist is None or best_obj < self.elitist["obj"]:
+        if self.elitist is None or best_obj < self.elitist.obj:
             self.elitist = population[best_sample_idx]
-            logging.info(f"Iteration {self.iteration}: Elitist: {self.elitist['obj']}")
+            logging.info(f"Iteration {self.iteration}: Elitist: {self.elitist.obj}")
 
         self.iteration += 1
 
-    def random_select(self, population: list[dict]) -> list[dict]:
+    def random_select(self, population: list[HSEvoIndividual]) -> list[HSEvoIndividual]:
         """
         Random selection, select individuals with equal probability.
         """
@@ -343,12 +352,11 @@ class HSEvo:
             population = [
                 individual
                 for individual in population
-                if individual["exec_success"]
-                and individual["obj"] < self.seed_ind["obj"]
+                if individual.exec_success and individual.obj < self.seed_ind.obj
             ]
         else:
             population = [
-                individual for individual in population if individual["exec_success"]
+                individual for individual in population if individual.exec_success
             ]
         if len(population) < 2:
             return None
@@ -368,7 +376,7 @@ class HSEvo:
         lst_str_method = []
         seen_elements = set()
 
-        sorted_population = sorted(population, key=lambda x: x["obj"], reverse=False)
+        sorted_population = sorted(population, key=lambda x: x.obj, reverse=False)
         for idx, individual in enumerate(sorted_population):
             suffix = (
                 "th"
@@ -445,12 +453,12 @@ class HSEvo:
         with open(file_name, "w") as file:
             file.writelines(self.str_comprehensive_memory)
 
-    def crossover(self, population: list[dict]) -> list[str]:
+    def crossover(self, population: list[HSEvoIndividual]) -> list[str]:
         messages_lst = []
         num_choice = 0
         for i in range(0, len(population), 2):
             # Select two individuals
-            if population[i]["obj"] < population[i + 1]["obj"]:
+            if population[i].obj < population[i + 1].obj:
                 parent_1 = population[i]
                 parent_2 = population[i + 1]
             else:
@@ -509,12 +517,12 @@ class HSEvo:
 
     def sel_individual_hs(self):
         candidate_hs = [
-            individual for individual in self.population if individual["tryHS"] is False
+            individual for individual in self.population if individual.tryHS is False
         ]
         best_candidate_id = self.find_best_obj(candidate_hs)
         self.local_sel_hs = best_candidate_id
-        self.population[best_candidate_id]["tryHS"] = True
-        return self.population[best_candidate_id]["code"]
+        self.population[best_candidate_id].tryHS = True
+        return self.population[best_candidate_id].code
 
     def initialize_harmony_memory(self, bounds):
         problem_size = len(bounds)
@@ -567,21 +575,21 @@ class HSEvo:
 
     def update_harmony_memory(
         self,
-        population_hs,
+        population_hs: list[HSEvoIndividual],
         harmony_memory,
         new_harmony,
         func_block,
         parameter_ranges,
         try_hs_idx,
     ):
-        objs = [individual["obj"] for individual in population_hs]
+        objs = [individual.obj for individual in population_hs]
         worst_index = np.argmax(np.array(objs))
 
         new_individual = self.create_population_hs(
             func_block, parameter_ranges, [new_harmony.tolist()], try_hs_idx
         )[0]
 
-        if new_individual["obj"] < population_hs[worst_index]["obj"]:
+        if new_individual.obj < population_hs[worst_index].obj:
             population_hs[worst_index] = new_individual
             harmony_memory[worst_index] = new_harmony
         return population_hs, harmony_memory
@@ -618,7 +626,7 @@ class HSEvo:
                 [
                     individual
                     for individual in population_hs
-                    if individual["exec_success"] is True
+                    if individual.exec_success is True
                 ]
             )
             == 0
@@ -637,12 +645,11 @@ class HSEvo:
                 iteration,
             )
         best_obj_id = self.find_best_obj(population_hs)
-        population_hs[best_obj_id]["tryHS"] = True
+        population_hs[best_obj_id].tryHS = True
         return population_hs[best_obj_id]
 
-    def save_log_population(self, population: list[dict], logHS=False):
-        objs = [individual["obj"] for individual in population]
-
+    def save_log_population(self, population: list[HSEvoIndividual], logHS=False):
+        objs = [individual.obj for individual in population]
         if logHS is False:
             file_name = f"objs_log_iter{self.iteration}.txt"
             with open(file_name, "w") as file:
@@ -655,7 +662,7 @@ class HSEvo:
     def evolve(self):
         while self.function_evals < self.config.max_fe:
             # If all individuals are invalid, stop
-            if all([not individual["exec_success"] for individual in self.population]):
+            if all([not individual.exec_success for individual in self.population]):
                 raise RuntimeError(
                     f"All individuals are invalid. Please check the stdout files in {os.getcwd()}."
                 )
@@ -672,7 +679,7 @@ class HSEvo:
             # Reflection
             self.flash_reflection(selected_population)
             self.comprehensive_reflection()
-            curr_code_path = self.elitist["code_path"]
+            curr_code_path = self.elitist.code_path
 
             # Crossover
             crossed_response_lst = self.crossover(selected_population)
@@ -688,7 +695,7 @@ class HSEvo:
             # Update
             self.update_iter()
 
-            if curr_code_path != self.elitist["code_path"]:
+            if curr_code_path != self.elitist.code_path:
                 self.lst_good_reflection.append(self.str_flash_memory["exp"])
             else:
                 self.lst_bad_reflection.append(self.str_flash_memory["exp"])

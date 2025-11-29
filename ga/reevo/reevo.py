@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass
 
 from ga.reevo.evolution import Evolution, ReEvoLLMClients
+from utils.individual import Individual
 from utils.llm_client.base import BaseClient
 from utils.problem import ProblemPrompts
 from utils.utils import (
@@ -84,7 +85,7 @@ class ReEvo:
         self.seed_ind = self.population[0]
 
         # If seed function is invalid, stop
-        if not self.seed_ind["exec_success"]:
+        if not self.seed_ind.exec_success:
             raise RuntimeError(
                 f"Seed function is invalid. Please check the stdout file in {os.getcwd()}."
             )
@@ -103,7 +104,7 @@ class ReEvo:
 
     def response_to_individual(
         self, response: str, response_id: int, file_name: str = None
-    ) -> dict:
+    ) -> Individual:
         """
         Convert response to individual
         """
@@ -125,24 +126,27 @@ class ReEvo:
             else file_name.rstrip(".txt") + "_stdout.txt"
         )
 
-        individual = {
-            "stdout_filepath": std_out_filepath,
-            "code_path": f"problem_iter{self.iteration}_code{response_id}.py",
-            "code": code,
-            "response_id": response_id,
-        }
+        individual = Individual(
+            stdout_filepath=std_out_filepath,
+            code_path=f"problem_iter{self.iteration}_code{response_id}.py",
+            code=code,
+            response_id=response_id,
+        )
+
         return individual
 
-    def mark_invalid_individual(self, individual: dict, traceback_msg: str) -> dict:
+    def mark_invalid_individual(
+        self, individual: Individual, traceback_msg: str
+    ) -> Individual:
         """
         Mark an individual as invalid.
         """
-        individual["exec_success"] = False
-        individual["obj"] = float("inf")
-        individual["traceback_msg"] = traceback_msg
+        individual.exec_success = False
+        individual.obj = float("inf")
+        individual.traceback_msg = traceback_msg
         return individual
 
-    def batch_evaluate(self, codes: list[str]) -> list[float]:
+    def batch_evaluate(self, codes: list[str]) -> list[Individual]:
         """
         Evaluate population by running code in parallel and computing objective values.
         """
@@ -156,7 +160,7 @@ class ReEvo:
         for response_id in range(len(population)):
             self.function_evals += 1
             # Skip if response is invalid
-            if population[response_id]["code"] is None:
+            if population[response_id].code is None:
                 population[response_id] = self.mark_invalid_individual(
                     population[response_id], "Invalid response!"
                 )
@@ -192,7 +196,7 @@ class ReEvo:
                 continue
 
             individual = population[response_id]
-            stdout_filepath = individual["stdout_filepath"]
+            stdout_filepath = individual.stdout_filepath
             with open(stdout_filepath, "r") as f:  # read the stdout file
                 stdout_str = f.read()
             traceback_msg = filter_traceback(stdout_str)
@@ -200,16 +204,14 @@ class ReEvo:
             # Store objective value for each individual
             if traceback_msg == "":  # If execution has no error
                 try:
-                    individual["obj"] = float(stdout_str.split("\n")[-2])
-                    assert (
-                        individual["obj"] > 0
-                    ), "Objective value <= 0 is not supported."
-                    individual["obj"] = (
-                        -individual["obj"]
+                    individual.obj = float(stdout_str.split("\n")[-2])
+                    assert individual.obj > 0, "Objective value <= 0 is not supported."
+                    individual.obj = (
+                        -individual.obj
                         if self.prompts.obj_type == "max"
-                        else individual["obj"]
+                        else individual.obj
                     )
-                    individual["exec_success"] = True
+                    individual.exec_success = True
                 except:
                     population[response_id] = self.mark_invalid_individual(
                         population[response_id], "Invalid std out / objective value!"
@@ -220,21 +222,21 @@ class ReEvo:
                 )
 
             logging.info(
-                f"Iteration {self.iteration}, response_id {response_id}: Objective value: {individual['obj']}"
+                f"Iteration {self.iteration}, response_id {response_id}: Objective value: {individual.obj}"
             )
         return population
 
-    def _run_code(self, individual: dict, response_id) -> subprocess.Popen:
+    def _run_code(self, individual: Individual, response_id) -> subprocess.Popen:
         """
         Write code into a file and run eval script.
         """
         logging.debug(f"Iteration {self.iteration}: Processing Code Run {response_id}")
 
         with open(self.output_file, "w") as file:
-            file.writelines(individual["code"] + "\n")
+            file.writelines(individual.code + "\n")
 
         # Execute the python file with flags
-        with open(individual["stdout_filepath"], "w") as f:
+        with open(individual.stdout_filepath, "w") as f:
             eval_file_path = (
                 f"{self.root_dir}/problems/{self.prompts.problem_name}/eval.py"
                 if self.prompts.problem_type != "black_box"
@@ -254,7 +256,7 @@ class ReEvo:
             )
 
         block_until_running(
-            individual["stdout_filepath"],
+            individual.stdout_filepath,
             log_status=True,
             iter_num=self.iteration,
             response_id=response_id,
@@ -266,19 +268,19 @@ class ReEvo:
         Update after each iteration
         """
         population = self.population
-        objs = [individual["obj"] for individual in population]
+        objs = [individual.obj for individual in population]
         best_obj, best_sample_idx = min(objs), np.argmin(np.array(objs))
 
         # update best overall
         if self.best_obj_overall is None or best_obj < self.best_obj_overall:
             self.best_obj_overall = best_obj
-            self.best_code_overall = population[best_sample_idx]["code"]
-            self.best_code_path_overall = population[best_sample_idx]["code_path"]
+            self.best_code_overall = population[best_sample_idx].code
+            self.best_code_path_overall = population[best_sample_idx].code_path
 
         # update elitist
-        if self.elitist is None or best_obj < self.elitist["obj"]:
+        if self.elitist is None or best_obj < self.elitist.obj:
             self.elitist = population[best_sample_idx]
-            logging.info(f"Iteration {self.iteration}: Elitist: {self.elitist['obj']}")
+            logging.info(f"Iteration {self.iteration}: Elitist: {self.elitist.obj}")
 
         best_path = self.best_code_path_overall.replace(".py", ".txt").replace(
             "code", "response"
@@ -290,7 +292,7 @@ class ReEvo:
         logging.info(f"Function Evals: {self.function_evals}")
         self.iteration += 1
 
-    def rank_select(self, population: list[dict]) -> list[dict]:
+    def rank_select(self, population: list[Individual]) -> list[Individual]:
         """
         Rank-based selection, select individuals with probability proportional to their rank.
         """
@@ -298,17 +300,16 @@ class ReEvo:
             population = [
                 individual
                 for individual in population
-                if individual["exec_success"]
-                and individual["obj"] < self.seed_ind["obj"]
+                if individual.exec_success and individual.obj < self.seed_ind.obj
             ]
         else:
             population = [
-                individual for individual in population if individual["exec_success"]
+                individual for individual in population if individual.exec_success
             ]
         if len(population) < 2:
             return None
         # Sort population by objective value
-        population = sorted(population, key=lambda x: x["obj"])
+        population = sorted(population, key=lambda x: x.obj)
         ranks = [i for i in range(len(population))]
         probs = [1 / (rank + 1 + len(population)) for rank in ranks]
         # Normalize probabilities
@@ -324,7 +325,7 @@ class ReEvo:
                 return None
         return selected_population
 
-    def random_select(self, population: list[dict]) -> list[dict]:
+    def random_select(self, population: list[Individual]) -> list[Individual]:
         """
         Random selection, select individuals with equal probability.
         """
@@ -334,12 +335,11 @@ class ReEvo:
             population = [
                 individual
                 for individual in population
-                if individual["exec_success"]
-                and individual["obj"] < self.seed_ind["obj"]
+                if individual.exec_success and individual.obj < self.seed_ind.obj
             ]
         else:
             population = [
-                individual for individual in population if individual["exec_success"]
+                individual for individual in population if individual.exec_success
             ]
         if len(population) < 2:
             return None
@@ -374,7 +374,7 @@ class ReEvo:
     def evolve(self):
         while self.function_evals < self.config.max_fe:
             # If all individuals are invalid, stop
-            if all([not individual["exec_success"] for individual in self.population]):
+            if all([not individual.exec_success for individual in self.population]):
                 raise RuntimeError(
                     f"All individuals are invalid. Please check the stdout files in {os.getcwd()}."
                 )

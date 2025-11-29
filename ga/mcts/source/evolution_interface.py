@@ -5,18 +5,16 @@ from typing import List
 
 import numpy as np
 
-from utils.problem import Problem
+from utils.individual import Individual
+from utils.problem import Problem, hydrate_individual
 from ga.mcts.source.evolution import Evolution, MCTSOperator
 from utils.llm_client.base import BaseClient
 
 
 @dataclass
-class Heuristic:
-    algorithm: str
-    thought: str | None
-    code: str
-    objective: float | None
-    other_inf: dict | None
+class MCTSIndividual(Individual):
+    algorithm: str | None = None
+    thought: str | None = None
 
 
 class InterfaceEC:
@@ -26,13 +24,13 @@ class InterfaceEC:
         self.interface_eval = interface_prob
         self.evol = Evolution(llm_client, interface_prob.prompts)
 
-    def check_duplicate_obj(self, population: list[Heuristic], obj: float) -> bool:
+    def check_duplicate_obj(self, population: list[MCTSIndividual], obj: float) -> bool:
         for ind in population:
-            if obj == ind.objective:
+            if obj == ind.obj:
                 return True
         return False
 
-    def check_duplicate(self, population: list[Heuristic], code: str) -> bool:
+    def check_duplicate(self, population: list[MCTSIndividual], code: str) -> bool:
         for ind in population:
             if code == ind.code:
                 return True
@@ -40,10 +38,10 @@ class InterfaceEC:
 
     def _get_alg(
         self,
-        pop: list[Heuristic],
+        pop: list[MCTSIndividual],
         operator: MCTSOperator,
-        father: Heuristic | None = None,
-    ) -> tuple[list[Heuristic], Heuristic]:
+        father: MCTSIndividual | None = None,
+    ) -> tuple[list[MCTSIndividual], MCTSIndividual]:
 
         match operator:
             case MCTSOperator.I1:
@@ -78,22 +76,21 @@ class InterfaceEC:
 
         algorithm = self.evol.post_thought(code, thought)
 
-        offspring = Heuristic(
+        offspring = MCTSIndividual(
             algorithm=algorithm,
             thought=thought,
             code=code,
-            objective=None,
-            other_inf={},
+            obj=None,
         )
 
         return parents, offspring
 
     def get_offspring(
         self,
-        pop: list[Heuristic],
+        pop: list[MCTSIndividual],
         operator: MCTSOperator,
-        father: Heuristic | None = None,
-    ) -> tuple[list[Heuristic], Heuristic]:
+        father: MCTSIndividual | None = None,
+    ) -> tuple[list[MCTSIndividual], MCTSIndividual]:
         while True:
             try:
                 p, offspring = self._get_alg(pop, operator, father=father)
@@ -110,13 +107,14 @@ class InterfaceEC:
         return p, offspring
 
     def get_algorithm(
-        self, pop: list[Heuristic], operator: MCTSOperator
-    ) -> tuple[int, list[Heuristic], Heuristic]:
+        self, pop: list[MCTSIndividual], operator: MCTSOperator
+    ) -> tuple[int, list[MCTSIndividual], MCTSIndividual]:
         n_evals = 0
         while True:
             n_evals += 1
             _, offspring = self.get_offspring(pop, operator)
-            obj = self.interface_eval.batch_evaluate([offspring.code], 0)[0]["obj"]
+            offspring = hydrate_individual(offspring, 0, 0)
+            obj = self.interface_eval.batch_evaluate([offspring], 0)[0].obj
             if (
                 obj == "timeout"
                 or obj == float("inf")
@@ -124,7 +122,7 @@ class InterfaceEC:
             ):
                 continue
 
-            offspring.objective = float(np.round(obj, 5))
+            offspring.obj = float(np.round(obj, 5))
             return n_evals, pop, offspring
 
     def evolve_algorithm(
@@ -133,13 +131,14 @@ class InterfaceEC:
         for i in range(3):
             eval_times += 1
             _, offspring = self.get_offspring(pop, operator, father=node)
-            population = self.interface_eval.batch_evaluate([offspring["code"]], 0)
-            objs = [indiv["obj"] for indiv in population]
+            offspring = hydrate_individual(offspring, 0, 0)
+            population = self.interface_eval.batch_evaluate([offspring], 0)
+            objs = [indiv.obj for indiv in population]
             if objs == "timeout":
                 return eval_times, None
-            if objs[0] == float("inf") or self.check_duplicate(pop, offspring["code"]):
+            if objs[0] == float("inf") or self.check_duplicate(pop, offspring.code):
                 continue
-            offspring["objective"] = np.round(objs[0], 5)
+            offspring.obj = np.round(objs[0], 5)
 
             return eval_times, offspring
         return eval_times, None

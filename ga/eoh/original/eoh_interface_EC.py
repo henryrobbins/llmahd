@@ -5,16 +5,14 @@ from typing import List
 import numpy as np
 
 from ga.eoh.original.eoh_evolution import EOHOperator, Evolution
-from utils.problem import Problem
+from utils.individual import Individual
+from utils.problem import Problem, hydrate_individual
 from utils.llm_client.base import BaseClient
 
 
 @dataclass
-class Heuristic:
-    algorithm: str
-    code: str
-    objective: float
-    other_inf: dict
+class EOHIndividual(Individual):
+    algorithm: str | None = None
 
 
 class InterfaceEC:
@@ -26,13 +24,13 @@ class InterfaceEC:
         self.interface_eval = interface_prob
         self.evol = Evolution(llm_client=llm_client, prompts=interface_prob.prompts)
 
-    def check_duplicate(self, population: list[Heuristic], code: str) -> bool:
+    def check_duplicate(self, population: list[EOHIndividual], code: str) -> bool:
         for ind in population:
             if code == ind.code:
                 return True
         return False
 
-    def population_generation(self) -> list[Heuristic]:
+    def population_generation(self) -> list[EOHIndividual]:
         n_create = 2
         population = []
         for _ in range(n_create):
@@ -41,28 +39,18 @@ class InterfaceEC:
                 population.append(p)
         return population
 
-    def population_generation_seed(self, seeds: list[Heuristic]) -> list[Heuristic]:
+    def population_generation_seed(
+        self, seeds: list[EOHIndividual]
+    ) -> list[EOHIndividual]:
 
-        population: list[Heuristic] = []
-        pop = self.interface_eval.batch_evaluate([seed.code for seed in seeds])
-        fitness = [indiv["obj"] for indiv in pop]
-        for i in range(len(seeds)):
-            obj = np.array(fitness[i])
-            seed_alg = Heuristic(
-                algorithm=seeds[i].algorithm,
-                code=seeds[i].code,
-                objective=np.round(obj, 5),
-                other_inf={},
-            )
-            population.append(seed_alg)
-
+        population = [hydrate_individual(indiv, i) for i, indiv in enumerate(seeds)]
+        population = self.interface_eval.batch_evaluate(population)
         print("Initiliazation finished! Get " + str(len(seeds)) + " seed algorithms")
-
         return population
 
     def _get_alg(
-        self, pop: list[Heuristic], operator: EOHOperator
-    ) -> tuple[list[Heuristic], Heuristic]:
+        self, pop: list[EOHIndividual], operator: EOHOperator
+    ) -> tuple[list[EOHIndividual], EOHIndividual]:
 
         match operator:
             case EOHOperator.I1:
@@ -85,18 +73,17 @@ class InterfaceEC:
                     f"Evolution operator [{operator}] has not been implemented!"
                 )
 
-        offspring = Heuristic(
+        offspring = EOHIndividual(
             algorithm=algorithm,
             code=code,
-            objective=None,
-            other_inf={},
+            obj=None,
         )
 
         return parents, offspring
 
     def get_offspring(
-        self, pop: list[Heuristic], operator: EOHOperator
-    ) -> tuple[list[Heuristic], Heuristic]:
+        self, pop: list[EOHIndividual], operator: EOHOperator
+    ) -> tuple[list[EOHIndividual], EOHIndividual]:
 
         try:
             p, offspring = self._get_alg(pop, operator)
@@ -113,24 +100,24 @@ class InterfaceEC:
         return p, offspring
 
     def get_algorithm(
-        self, pop: list[Heuristic], operator: EOHOperator
-    ) -> tuple[list[list[Heuristic]], list[Heuristic]]:
-        offspring_list: list[tuple[list[Heuristic], Heuristic]] = []
+        self, pop: list[EOHIndividual], operator: EOHOperator
+    ) -> tuple[list[list[EOHIndividual]], list[EOHIndividual]]:
+        offspring_list: list[tuple[list[EOHIndividual], EOHIndividual]] = []
         for _ in range(self.pop_size):
             p, offspring = self.get_offspring(pop, operator)
             offspring_list.append((p, offspring))
 
-        pop = self.interface_eval.batch_evaluate(
-            [offspring.code for _, offspring in offspring_list], 0
-        )
-        objs = [indiv["obj"] for indiv in pop]
+        pop = [offspring for _, offspring in offspring_list]
+        pop = [hydrate_individual(offspring, i) for i, offspring in enumerate(pop)]
+        pop = self.interface_eval.batch_evaluate(pop, 0)
+        objs = [indiv.obj for indiv in pop]
         for i, (_, offspring) in enumerate(offspring_list):
-            offspring.objective = np.round(objs[i], 5)
+            offspring.obj = np.round(objs[i], 5)
 
         results = offspring_list
 
-        out_p: list[list[Heuristic]] = []
-        out_off: list[Heuristic] = []
+        out_p: list[list[EOHIndividual]] = []
+        out_off: list[EOHIndividual] = []
 
         for p, off in results:
             out_p.append(p)

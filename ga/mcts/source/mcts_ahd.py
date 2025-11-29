@@ -8,7 +8,7 @@ from ga.mcts.source.evolution import MCTSOperator
 from ga.mcts.source.mcts import MCTS, MCTSNode
 from ga.mcts.source.config import Config
 from utils.problem import Problem
-from ga.mcts.source.evolution_interface import Heuristic, InterfaceEC
+from ga.mcts.source.evolution_interface import MCTSIndividual, InterfaceEC
 from utils.llm_client.base import BaseClient
 
 
@@ -44,8 +44,12 @@ class MCTS_AHD:
         population.append(offspring)
 
     def expand(
-        self, mcts: MCTS, cur_node: MCTSNode, nodes_set: list[Heuristic], option: str
-    ) -> list[Heuristic]:
+        self,
+        mcts: MCTS,
+        cur_node: MCTSNode,
+        nodes_set: list[MCTSIndividual],
+        option: str,
+    ) -> list[MCTSIndividual]:
         if option == "s1":
             path_set = []
             now = copy.deepcopy(cur_node)
@@ -139,7 +143,7 @@ class MCTS_AHD:
             llm_client=self.llm_client,
         )
 
-        brothers: list[Heuristic] = []
+        brothers: list[MCTSIndividual] = []
         mcts = MCTS("Root")
         # main loop
         n_op = len(self.operators)
@@ -151,11 +155,11 @@ class MCTS_AHD:
         nownode = MCTSNode(
             offspring.algorithm,
             offspring.code,
-            offspring.objective,
+            offspring.obj,
             parent=mcts.root,
             depth=1,
             visit=1,
-            Q=-1 * offspring.objective,
+            Q=-1 * offspring.obj,
             raw_info=offspring,
         )
         mcts.root.add_child(nownode)
@@ -171,11 +175,11 @@ class MCTS_AHD:
             nownode = MCTSNode(
                 offspring.algorithm,
                 offspring.code,
-                offspring.objective,
+                offspring.obj,
                 parent=mcts.root,
                 depth=1,
                 visit=1,
-                Q=-1 * offspring.objective,
+                Q=-1 * offspring.obj,
                 raw_info=offspring,
             )
             mcts.root.add_child(nownode)
