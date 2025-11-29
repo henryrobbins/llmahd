@@ -91,22 +91,10 @@ in literature to select the next node in each step.",
 )
 
 
-def adapt_prompt(problem_cfg: dict, root_dir: str):
+def adapt_prompt(prompts: ProblemPrompts) -> EOHProblemPrompts:
 
-    cfg = problem_cfg
-    problem = problem_cfg["problem_name"]
-    root_dir = root_dir
-    problem_type = problem_cfg["problem_type"]
-    prompt_dir = f"{root_dir}/prompts"
-
-    prompt_path_suffix = "_black_box" if problem_type == "black_box" else ""
-    problem_prompt_path = f"{prompt_dir}/{problem}{prompt_path_suffix}"
-    func_signature = (
-        file_to_string(f"{problem_prompt_path}/func_signature.txt")
-        .format(version=2)
-        .strip()
-    )
-    func_desc = file_to_string(f"{problem_prompt_path}/func_desc.txt")
+    func_signature = prompts.func_signature
+    func_desc = prompts.func_desc
 
     match = re.match(r"^def +(.+?)\((.*)\) *-> *(.*?) *:", func_signature)
     assert match is not None
@@ -128,7 +116,7 @@ def adapt_prompt(problem_cfg: dict, root_dir: str):
         prompt_func_outputs = ["result"]
 
     return EOHProblemPrompts(
-        prompt_task=cfg["description"],
+        prompt_task=prompts.problem_desc,
         prompt_func_name=prompt_func_name,
         prompt_func_inputs=prompt_func_inputs,
         prompt_func_outputs=prompt_func_outputs,

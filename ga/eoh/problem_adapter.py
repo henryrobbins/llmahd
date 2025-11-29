@@ -2,9 +2,7 @@ import logging
 import os
 import subprocess
 
-import yaml
-
-from utils.problem import adapt_prompt
+from utils.problem import ProblemPrompts, adapt_prompt
 from utils.utils import block_until_running, filter_traceback
 
 
@@ -13,14 +11,15 @@ class Problem:
         self.problem_name = problem_name
         self.root_dir = root_dir
 
-        with open(f"{self.root_dir}/prompts/{problem_name}/problem.yaml", "r") as f:
-            problem_config = yaml.safe_load(f)
+        self.problem_config = ProblemPrompts.load_problem_prompts(
+            f"{self.root_dir}/prompts/{problem_name}"
+        )
 
-        self.problem = problem_config["problem_name"]
-        self.problem_description = problem_config["description"]
-        self.problem_size = problem_config["problem_size"]
-        self.obj_type = problem_config["obj_type"]
-        self.problem_type = problem_config["problem_type"]
+        self.problem = self.problem_config.problem_name
+        self.problem_description = self.problem_config.problem_desc
+        self.problem_size = self.problem_config.problem_size
+        self.obj_type = self.problem_config.obj_type
+        self.problem_type = self.problem_config.problem_type
         self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
 
         if self.problem_type == "tsp_constructive":
@@ -32,7 +31,7 @@ class Problem:
 
             self.prompts = BPP_ONLINE_PROMPTS
         else:
-            self.prompts = adapt_prompt(problem_config, root_dir)
+            self.prompts = adapt_prompt(self.problem_config)
 
     def response_to_individual(self, code, response_id, file_name=None) -> dict:
         """
