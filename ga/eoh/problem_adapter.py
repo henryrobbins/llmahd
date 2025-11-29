@@ -15,18 +15,15 @@ class Problem:
             f"{self.root_dir}/prompts/{problem_name}"
         )
 
-        self.problem = self.problem_config.problem_name
-        self.problem_description = self.problem_config.problem_desc
-        self.problem_size = self.problem_config.problem_size
-        self.obj_type = self.problem_config.obj_type
-        self.problem_type = self.problem_config.problem_type
-        self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
+        self.output_file = (
+            f"{self.root_dir}/problems/{self.problem_config.problem_name}/gpt.py"
+        )
 
-        if self.problem_type == "tsp_constructive":
+        if self.problem_config.problem_type == "constructive":
             from utils.problem import TSP_CONSTRUCTIVE_PROMPTS
 
             self.prompts = TSP_CONSTRUCTIVE_PROMPTS
-        elif self.problem_type == "bpp_online":
+        elif self.problem_config.problem_type == "online":
             from utils.problem import BPP_ONLINE_PROMPTS
 
             self.prompts = BPP_ONLINE_PROMPTS
@@ -108,16 +105,16 @@ class Problem:
                 # Execute the python file with flags
                 with open(individual["stdout_filepath"], "w") as f:
                     file_path = (
-                        f"{self.root_dir}/problems/{self.problem}/eval.py"
-                        if self.problem_type != "black_box"
-                        else f"{self.root_dir}/problems/{self.problem}/eval_black_box.py"
+                        f"{self.root_dir}/problems/{self.problem_config.problem_name}/eval.py"
+                        if self.problem_config.problem_type != "black_box"
+                        else f"{self.root_dir}/problems/{self.problem_config.problem_name}/eval_black_box.py"
                     )
                     inner_run = process = subprocess.Popen(
                         [
                             "python",
                             "-u",
                             file_path,
-                            f"{self.problem_size}",
+                            f"{self.problem_config.problem_size}",
                             self.root_dir,
                             "train",
                         ],
@@ -164,10 +161,10 @@ class Problem:
                     ), "Objective value <= 0 is not supported."
                     individual["obj"] = (
                         -individual["obj"]
-                        if self.obj_type == "max"
+                        if self.problem_config.obj_type == "max"
                         else individual["obj"]
                     )
-                    # individual["fitness"] = 1 / individual["obj"] if self.obj_type == "min" else individual["obj"]
+                    # individual["fitness"] = 1 / individual["obj"] if self.problem_config.obj_type == "min" else individual["obj"]
                     individual["exec_success"] = True
                 except:
                     population[response_id] = self.mark_invalid_individual(
