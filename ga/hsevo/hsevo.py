@@ -189,18 +189,6 @@ class HSEvo:
         individual["traceback_msg"] = traceback_msg
         return individual
 
-    def save_log_population(self, population: list[dict], logHS=False):
-        objs = [individual["obj"] for individual in population]
-
-        if logHS is False:
-            file_name = f"objs_log_iter{self.iteration}.txt"
-            with open(file_name, "w") as file:
-                file.writelines("\n".join(map(str, objs)) + "\n")
-        else:
-            file_name = f"objs_log_iter{self.iteration}_hs.txt"
-            with open(file_name, "w") as file:
-                file.writelines("\n".join(map(str, objs + [self.local_sel_hs])) + "\n")
-
     def evaluate_population(
         self, population: list[dict], hs_try_idx: int = None
     ) -> list[dict]:
@@ -222,28 +210,16 @@ class HSEvo:
 
             logging.info(f"Iteration {self.iteration}: Running Code {response_id}")
 
-            if self.prompts.problem_name == "tsp_gls":
-                pass
-                # try:
-                #     # Use sandboxed execution for 'tsp_gls'
-                #     sandbox = Sandbox()
-                #     result, run_ok = sandbox.run(population[response_id]['code'])
-                #     inner_runs.append((result, run_ok))
-                # except Exception as e:  # If sandbox execution fails
-                #     logging.info(f"Error for response_id {response_id}: {e}")
-                #     population[response_id] = self.mark_invalid_individual(population[response_id], str(e))
-                #     inner_runs.append(None)
-            else:
-                try:
-                    # Use default code execution for other problems
-                    process = self._run_code(population[response_id], response_id)
-                    inner_runs.append(process)
-                except Exception as e:  # If code execution fails
-                    logging.info(f"Error for response_id {response_id}: {e}")
-                    population[response_id] = self.mark_invalid_individual(
-                        population[response_id], str(e)
-                    )
-                    inner_runs.append(None)
+            try:
+                # Use default code execution for other problems
+                process = self._run_code(population[response_id], response_id)
+                inner_runs.append(process)
+            except Exception as e:  # If code execution fails
+                logging.info(f"Error for response_id {response_id}: {e}")
+                population[response_id] = self.mark_invalid_individual(
+                    population[response_id], str(e)
+                )
+                inner_runs.append(None)
 
         # Update population with objective values
         for response_id, inner_run in enumerate(inner_runs):
@@ -252,59 +228,40 @@ class HSEvo:
 
             individual = population[response_id]
 
-            if self.prompts.problem_name == "tsp_gls":
-                result, run_ok = inner_run
-                if run_ok:
-                    try:
-                        individual["obj"] = (
-                            float(result)
-                            if self.prompts.obj_type == "min"
-                            else -float(result)
-                        )
-                        individual["exec_success"] = True
-                    except:
-                        population[response_id] = self.mark_invalid_individual(
-                            population[response_id], "Invalid objective value!"
-                        )
-                else:
-                    population[response_id] = self.mark_invalid_individual(
-                        population[response_id], "Sandbox execution failed!"
-                    )
-            else:
+            try:
+                inner_run.communicate(
+                    timeout=self.config.timeout
+                )  # Wait for code execution to finish
+            except subprocess.TimeoutExpired as e:
+                logging.info(f"Error for response_id {response_id}: {e}")
+                population[response_id] = self.mark_invalid_individual(
+                    population[response_id], str(e)
+                )
+                inner_run.kill()
+                continue
+
+            stdout_filepath = individual["stdout_filepath"]
+            with open(stdout_filepath, "r") as f:  # read the stdout file
+                stdout_str = f.read()
+            traceback_msg = filter_traceback(stdout_str)
+
+            if traceback_msg == "":  # If execution has no error
                 try:
-                    inner_run.communicate(
-                        timeout=self.config.timeout
-                    )  # Wait for code execution to finish
-                except subprocess.TimeoutExpired as e:
-                    logging.info(f"Error for response_id {response_id}: {e}")
-                    population[response_id] = self.mark_invalid_individual(
-                        population[response_id], str(e)
+                    individual["obj"] = (
+                        float(stdout_str.split("\n")[-2])
+                        if self.prompts.obj_type == "min"
+                        else -float(stdout_str.split("\n")[-2])
                     )
-                    inner_run.kill()
-                    continue
-
-                stdout_filepath = individual["stdout_filepath"]
-                with open(stdout_filepath, "r") as f:  # read the stdout file
-                    stdout_str = f.read()
-                traceback_msg = filter_traceback(stdout_str)
-
-                if traceback_msg == "":  # If execution has no error
-                    try:
-                        individual["obj"] = (
-                            float(stdout_str.split("\n")[-2])
-                            if self.prompts.obj_type == "min"
-                            else -float(stdout_str.split("\n")[-2])
-                        )
-                        individual["exec_success"] = True
-                    except:
-                        population[response_id] = self.mark_invalid_individual(
-                            population[response_id],
-                            "Invalid std out / objective value!",
-                        )
-                else:  # Otherwise, also provide execution traceback error feedback
+                    individual["exec_success"] = True
+                except:
                     population[response_id] = self.mark_invalid_individual(
-                        population[response_id], traceback_msg
+                        population[response_id],
+                        "Invalid std out / objective value!",
                     )
+            else:  # Otherwise, also provide execution traceback error feedback
+                population[response_id] = self.mark_invalid_individual(
+                    population[response_id], traceback_msg
+                )
 
         # Log after all population is evaluated
         valid_objs = [ind["obj"] for ind in population if ind["exec_success"]]
@@ -705,6 +662,18 @@ class HSEvo:
         best_obj_id = self.find_best_obj(population_hs)
         population_hs[best_obj_id]["tryHS"] = True
         return population_hs[best_obj_id]
+
+    def save_log_population(self, population: list[dict], logHS=False):
+        objs = [individual["obj"] for individual in population]
+
+        if logHS is False:
+            file_name = f"objs_log_iter{self.iteration}.txt"
+            with open(file_name, "w") as file:
+                file.writelines("\n".join(map(str, objs)) + "\n")
+        else:
+            file_name = f"objs_log_iter{self.iteration}_hs.txt"
+            with open(file_name, "w") as file:
+                file.writelines("\n".join(map(str, objs + [self.local_sel_hs])) + "\n")
 
     def evolve(self):
         while self.function_evals < self.config.max_fe:
