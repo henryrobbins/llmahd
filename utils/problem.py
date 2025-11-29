@@ -9,13 +9,17 @@ from utils.utils import block_until_running, file_to_string, filter_traceback
 
 
 @dataclass
-class ProblemPrompts:
+class BaseProblemPrompts:
     problem_name: str
     problem_type: str
     obj_type: str
     problem_size: int
-    func_name: str
     problem_desc: str
+    func_name: str
+
+
+@dataclass
+class ProblemPrompts(BaseProblemPrompts):
     seed_func: str
     func_signature: str
     func_desc: str
@@ -48,13 +52,7 @@ class ProblemPrompts:
 
 
 @dataclass
-class EOHProblemPrompts:
-    problem_name: str
-    problem_type: str
-    obj_type: str
-    problem_size: int
-    problem_desc: str
-    func_name: str
+class EOHProblemPrompts(BaseProblemPrompts):
     func_inputs: list[str]
     func_outputs: list[str]
     inout_inf: str

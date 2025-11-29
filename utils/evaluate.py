@@ -1,32 +1,17 @@
 import logging
 import subprocess
-from utils.problem import ProblemPrompts, adapt_prompt
+
+from utils.problem import BaseProblemPrompts
 from utils.utils import block_until_running, filter_traceback
 
 
 class Evaluator:
-    def __init__(self, problem_name: str, root_dir: str):
+    def __init__(self, problem_prompts: BaseProblemPrompts, root_dir: str):
         self.root_dir = root_dir
-
-        self.problem_config = ProblemPrompts.load_problem_prompts(
-            f"{self.root_dir}/prompts/{problem_name}"
-        )
-
+        self.problem_prompts = problem_prompts
         self.output_file = (
-            f"{self.root_dir}/problems/{self.problem_config.problem_name}/gpt.py"
+            f"{self.root_dir}/problems/{self.problem_prompts.problem_name}/gpt.py"
         )
-
-        if self.problem_config.problem_type == "constructive":
-            from utils.problem import TSP_CONSTRUCTIVE_PROMPTS
-
-            self.prompts = TSP_CONSTRUCTIVE_PROMPTS
-        elif self.problem_config.problem_type == "online":
-            from utils.problem import BPP_ONLINE_PROMPTS
-
-            self.prompts = BPP_ONLINE_PROMPTS
-        else:
-            self.prompts = adapt_prompt(self.problem_config)
-
         self.function_evals = 0
 
     def response_to_individual(self, code, response_id, file_name=None) -> dict:
@@ -131,7 +116,7 @@ class Evaluator:
                     ), "Objective value <= 0 is not supported."
                     individual["obj"] = (
                         -individual["obj"]
-                        if self.problem_config.obj_type == "max"
+                        if self.problem_prompts.obj_type == "max"
                         else individual["obj"]
                     )
                     individual["exec_success"] = True
@@ -161,16 +146,16 @@ class Evaluator:
         # Execute the python file with flags
         with open(individual["stdout_filepath"], "w") as f:
             eval_file_path = (
-                f"{self.root_dir}/problems/{self.prompts.problem_name}/eval.py"
-                if self.prompts.problem_type != "black_box"
-                else f"{self.root_dir}/problems/{self.prompts.problem_name}/eval_black_box.py"
+                f"{self.root_dir}/problems/{self.problem_prompts.problem_name}/eval.py"
+                if self.problem_prompts.problem_type != "black_box"
+                else f"{self.root_dir}/problems/{self.problem_prompts.problem_name}/eval_black_box.py"
             )
             process = subprocess.Popen(
                 [
                     "python",
                     "-u",
                     eval_file_path,
-                    f"{self.prompts.problem_size}",
+                    f"{self.problem_prompts.problem_size}",
                     self.root_dir,
                     "train",
                 ],
