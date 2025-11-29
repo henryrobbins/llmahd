@@ -8,7 +8,7 @@ import numpy as np
 from utils.evaluate import Evaluator
 from utils.individual import Individual
 from utils.problem import EOHProblemPrompts, hydrate_individual
-from ga.mcts.source.evolution import Evolution, MCTSOperator
+from ga.mcts.evolution import Evolution, MCTSOperator
 from utils.llm_client.base import BaseClient
 
 

@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from utils.evaluate import Evaluator
 from utils.llm_client.base import BaseClient
-from ga.eoh.original.eoh import EOH
-from ga.eoh.original.config import Config
+from ga.eoh.eoh import EOH
+from ga.eoh.config import Config
 from utils.problem import ProblemPrompts, adapt_prompt
 
 

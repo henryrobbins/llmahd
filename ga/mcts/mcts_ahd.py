@@ -4,11 +4,11 @@ import json
 import random
 from typing import List, Dict
 
-from ga.mcts.source.evolution import MCTSOperator
-from ga.mcts.source.mcts import MCTS, MCTSNode
-from ga.mcts.source.config import Config
+from ga.mcts.evolution import MCTSOperator
+from ga.mcts.mcts import MCTS, MCTSNode
+from ga.mcts.config import Config
 from utils.evaluate import Evaluator
-from ga.mcts.source.evolution_interface import MCTSIndividual, InterfaceEC
+from ga.mcts.evolution_interface import MCTSIndividual, InterfaceEC
 from utils.llm_client.base import BaseClient
 from utils.problem import EOHProblemPrompts
 

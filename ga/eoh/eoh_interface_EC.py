@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-from ga.eoh.original.eoh_evolution import EOHOperator, Evolution
+from ga.eoh.eoh_evolution import EOHOperator, Evolution
 from utils.evaluate import Evaluator
 from utils.individual import Individual
 from utils.problem import EOHProblemPrompts, hydrate_individual

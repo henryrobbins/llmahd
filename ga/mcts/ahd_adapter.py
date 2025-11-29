@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from ga.mcts.source.mcts_ahd import MCTS_AHD
-from ga.mcts.source.config import Config
+from ga.mcts.mcts_ahd import MCTS_AHD
+from ga.mcts.config import Config
 from utils.evaluate import Evaluator
 from utils.problem import ProblemPrompts, adapt_prompt
 

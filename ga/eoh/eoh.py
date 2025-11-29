@@ -4,10 +4,10 @@ import random
 import heapq
 import time
 
-from ga.eoh.original.eoh_evolution import EOHOperator
-from ga.eoh.original.config import Config
+from ga.eoh.eoh_evolution import EOHOperator
+from ga.eoh.config import Config
 from utils.evaluate import Evaluator
-from ga.eoh.original.eoh_interface_EC import EOHIndividual, InterfaceEC
+from ga.eoh.eoh_interface_EC import EOHIndividual, InterfaceEC
 from utils.llm_client.base import BaseClient
 from utils.problem import EOHProblemPrompts
 
