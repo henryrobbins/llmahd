@@ -81,7 +81,14 @@ class ReEvo:
 
     def init_population(self) -> None:
         # Evaluate the seed function, and set it as Elite
-        self.population = self.batch_evaluate([self.prompts.seed_func])
+        code = extract_code_from_generator(self.prompts.seed_func).replace("v1", "v2")
+        seed_ind = Individual(
+            stdout_filepath=f"problem_iter{self.iteration}_stdout0.txt",
+            code_path=f"problem_iter{self.iteration}_code0.py",
+            code=code,
+            response_id=0,
+        )
+        self.population = self.batch_evaluate([seed_ind])
         self.seed_ind = self.population[0]
 
         # If seed function is invalid, stop
@@ -95,9 +102,13 @@ class ReEvo:
         # Generate responses
         responses = self.evol.seed_population(self.long_term_reflection_str)
 
-        # Run code and evaluate population
-        population = self.batch_evaluate(responses)
+        population = [
+            self.response_to_individual(resp, index)
+            for index, resp in enumerate(responses)
+        ]
 
+        # Run code and evaluate population
+        population = self.batch_evaluate(population)
         # Update iteration
         self.population = population
         self.update_iter()
@@ -146,14 +157,10 @@ class ReEvo:
         individual.traceback_msg = traceback_msg
         return individual
 
-    def batch_evaluate(self, codes: list[str]) -> list[Individual]:
+    def batch_evaluate(self, population: list[Individual]) -> list[Individual]:
         """
         Evaluate population by running code in parallel and computing objective values.
         """
-
-        population = [
-            self.response_to_individual(resp, index) for index, resp in enumerate(codes)
-        ]
 
         inner_runs = []
         # Run code to evaluate
@@ -393,8 +400,12 @@ class ReEvo:
             )  # (response_lst, worse_code_lst, better_code_lst)
             # Crossover
             crossed_response_lst = self.evol.crossover(short_term_reflection_tuple)
+            crossed_population = [
+                self.response_to_individual(response, response_id)
+                for response_id, response in enumerate(crossed_response_lst)
+            ]
             # Evaluate
-            self.population = self.batch_evaluate(crossed_response_lst)
+            self.population = self.batch_evaluate(crossed_population)
             # Update
             self.update_iter()
             # Long-term reflection
@@ -405,8 +416,12 @@ class ReEvo:
             mutated_response_lst = self.evol.mutate(
                 self.long_term_reflection_str, self.elitist
             )
+            mutated_population = [
+                self.response_to_individual(response, response_id)
+                for response_id, response in enumerate(mutated_response_lst)
+            ]
             # Evaluate
-            self.population.extend(self.batch_evaluate(mutated_response_lst))
+            self.population.extend(self.batch_evaluate(mutated_population))
             # Update
             self.update_iter()
 
