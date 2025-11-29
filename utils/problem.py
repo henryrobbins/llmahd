@@ -163,6 +163,8 @@ class Problem:
         else:
             self.prompts = adapt_prompt(self.problem_config)
 
+        self.function_evals = 0
+
     def response_to_individual(self, code, response_id, file_name=None) -> dict:
         """
         Convert response to individual
@@ -213,6 +215,7 @@ class Problem:
         inner_runs = []
         # Run code to evaluate
         for response_id in range(len(population)):
+            self.function_evals += 1
             # Skip if response is invalid
             if population[response_id]["code"] is None:
                 population[response_id] = self.mark_invalid_individual(
@@ -227,7 +230,6 @@ class Problem:
                 process = self._run_code(population[response_id], response_id)
                 inner_runs.append(process)
             except Exception as e:  # If code execution fails
-                print(e)
                 logging.info(f"Error for response_id {response_id}: {e}")
                 population[response_id] = self.mark_invalid_individual(
                     population[response_id], str(e)

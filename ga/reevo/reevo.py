@@ -80,7 +80,7 @@ class ReEvo:
 
     def init_population(self) -> None:
         # Evaluate the seed function, and set it as Elite
-        self.population = self.evaluate_population([self.prompts.seed_func])
+        self.population = self.batch_evaluate([self.prompts.seed_func])
         self.seed_ind = self.population[0]
 
         # If seed function is invalid, stop
@@ -95,7 +95,7 @@ class ReEvo:
         responses = self.evol.seed_population(self.long_term_reflection_str)
 
         # Run code and evaluate population
-        population = self.evaluate_population(responses)
+        population = self.batch_evaluate(responses)
 
         # Update iteration
         self.population = population
@@ -113,7 +113,7 @@ class ReEvo:
             if file_name is None
             else file_name + ".txt"
         )
-        with open(file_name, "w") as file:
+        with open(file_name, "w", encoding="utf-8") as file:
             file.writelines(response + "\n")
 
         code = extract_code_from_generator(response)
@@ -122,7 +122,7 @@ class ReEvo:
         std_out_filepath = (
             f"problem_iter{self.iteration}_stdout{response_id}.txt"
             if file_name is None
-            else file_name + "_stdout.txt"
+            else file_name.rstrip(".txt") + "_stdout.txt"
         )
 
         individual = {
@@ -142,7 +142,7 @@ class ReEvo:
         individual["traceback_msg"] = traceback_msg
         return individual
 
-    def evaluate_population(self, codes: list[str]) -> list[float]:
+    def batch_evaluate(self, codes: list[str]) -> list[float]:
         """
         Evaluate population by running code in parallel and computing objective values.
         """
@@ -200,10 +200,14 @@ class ReEvo:
             # Store objective value for each individual
             if traceback_msg == "":  # If execution has no error
                 try:
+                    individual["obj"] = float(stdout_str.split("\n")[-2])
+                    assert (
+                        individual["obj"] > 0
+                    ), "Objective value <= 0 is not supported."
                     individual["obj"] = (
-                        float(stdout_str.split("\n")[-2])
-                        if self.prompts.obj_type == "min"
-                        else -float(stdout_str.split("\n")[-2])
+                        -individual["obj"]
+                        if self.prompts.obj_type == "max"
+                        else individual["obj"]
                     )
                     individual["exec_success"] = True
                 except:
@@ -390,7 +394,7 @@ class ReEvo:
             # Crossover
             crossed_response_lst = self.evol.crossover(short_term_reflection_tuple)
             # Evaluate
-            self.population = self.evaluate_population(crossed_response_lst)
+            self.population = self.batch_evaluate(crossed_response_lst)
             # Update
             self.update_iter()
             # Long-term reflection
@@ -402,7 +406,7 @@ class ReEvo:
                 self.long_term_reflection_str, self.elitist
             )
             # Evaluate
-            self.population.extend(self.evaluate_population(mutated_response_lst))
+            self.population.extend(self.batch_evaluate(mutated_response_lst))
             # Update
             self.update_iter()
 
