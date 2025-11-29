@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 import os
 from omegaconf import DictConfig
+from dataclasses import dataclass
 
 from ga.reevo.evolution import Evolution, ReEvoLLMClients
 from utils.llm_client.base import BaseClient
@@ -14,6 +15,17 @@ from utils.utils import (
     block_until_running,
     print_hyperlink,
 )
+
+
+@dataclass
+class ReEvoConfig:
+
+    max_fe: int = 100  # maximum number of function evaluations
+    pop_size: int = 10  # population size for GA
+    init_pop_size: int = 30  # initial population size for GA
+    mutation_rate: float = 0.5  # mutation rate for GA
+    timeout: int = 20  # timeout for evaluation of a single heuristic
+    diversify_init_pop: bool = True  # whether to diversify the initial population
 
 
 class ReEvo:
@@ -31,6 +43,7 @@ class ReEvo:
         mutation_llm: Optional[BaseClient] = None,
     ) -> None:
         self.cfg = cfg
+        self.config = ReEvoConfig()
 
         self.root_dir = root_dir
         self.prompt_dir = f"{self.root_dir}/prompts"
@@ -44,9 +57,9 @@ class ReEvo:
         )
 
         self.evol = Evolution(
-            init_pop_size=self.cfg.init_pop_size,
-            pop_size=self.cfg.pop_size,
-            mutation_rate=self.cfg.mutation_rate,
+            init_pop_size=self.config.init_pop_size,
+            pop_size=self.config.pop_size,
+            mutation_rate=self.config.mutation_rate,
             root_dir=self.root_dir,
             llm_clients=ReEvoLLMClients(
                 generator_llm=generator_llm,
@@ -61,7 +74,7 @@ class ReEvo:
 
         self.root_dir = root_dir
 
-        self.mutation_rate = cfg.mutation_rate
+        self.mutation_rate = self.config.mutation_rate
         self.iteration = 0
         self.function_evals = 0
         self.elitist = None
@@ -184,7 +197,7 @@ class ReEvo:
                 continue
             try:
                 inner_run.communicate(
-                    timeout=self.cfg.timeout
+                    timeout=self.config.timeout
                 )  # Wait for code execution to finish
             except subprocess.TimeoutExpired as e:
                 logging.info(f"Error for response_id {response_id}: {e}")
@@ -315,7 +328,7 @@ class ReEvo:
         probs = [prob / sum(probs) for prob in probs]
         selected_population = []
         trial = 0
-        while len(selected_population) < 2 * self.cfg.pop_size:
+        while len(selected_population) < 2 * self.config.pop_size:
             trial += 1
             parents = np.random.choice(population, size=2, replace=False, p=probs)
             if parents[0]["obj"] != parents[1]["obj"]:
@@ -344,7 +357,7 @@ class ReEvo:
         if len(population) < 2:
             return None
         trial = 0
-        while len(selected_population) < 2 * self.cfg.pop_size:
+        while len(selected_population) < 2 * self.config.pop_size:
             trial += 1
             parents = np.random.choice(population, size=2, replace=False)
             # If two parents have the same objective value, consider them as identical; otherwise, add them to the selected population
@@ -393,7 +406,7 @@ class ReEvo:
         return population
 
     def evolve(self):
-        while self.function_evals < self.cfg.max_fe:
+        while self.function_evals < self.config.max_fe:
             # If all individuals are invalid, stop
             if all([not individual["exec_success"] for individual in self.population]):
                 raise RuntimeError(

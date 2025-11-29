@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 import logging
 import subprocess
@@ -15,12 +16,31 @@ from utils.utils import (
 )
 
 
+@dataclass
+class HSEvoConfig:
+
+    # Main GA loop parameters
+    max_fe: int = 450  # maximum number of function evaluations
+    pop_size: int = 10  # population size for GA
+    init_pop_size: int = 30  # initial population size for GA
+    mutation_rate: float = 0.5  # mutation rate for GA
+    timeout: int = 50  # timeout for evaluation of a single heuristic
+
+    # Harmony search
+    hm_size: int = 5
+    hmcr: float = 0.7
+    par: float = 0.5
+    bandwidth: float = 0.2
+    max_iter: int = 5
+
+
 class HSEvo:
     def __init__(self, cfg, root_dir) -> None:
         self.cfg = cfg
+        self.config = HSEvoConfig()
         self.root_dir = root_dir
 
-        self.mutation_rate = cfg.mutation_rate
+        self.mutation_rate = self.config.mutation_rate
         self.iteration = 0
         self.function_evals = 0
         self.prompt_tokens = 0
@@ -96,7 +116,7 @@ class HSEvo:
 
         messages_lst = []
 
-        for i in range(self.cfg.init_pop_size):
+        for i in range(self.config.init_pop_size):
             scientist = self.scientists[i % len(self.scientists)]
             pre_messages = self.evol.init_population(
                 long_term_reflection_str=self.long_term_reflection_str,
@@ -253,7 +273,7 @@ class HSEvo:
             else:
                 try:
                     inner_run.communicate(
-                        timeout=self.cfg.timeout
+                        timeout=self.config.timeout
                     )  # Wait for code execution to finish
                 except subprocess.TimeoutExpired as e:
                     logging.info(f"Error for response_id {response_id}: {e}")
@@ -373,7 +393,7 @@ class HSEvo:
         if len(population) < 2:
             return None
         trial = 0
-        while len(selected_population) < 2 * self.cfg.pop_size:
+        while len(selected_population) < 2 * self.config.pop_size:
             trial += 1
             parents = np.random.choice(population, size=2, replace=False)
             # If two parents have the same objective value, consider them as identical;
@@ -504,7 +524,7 @@ class HSEvo:
             for response_id, response in enumerate(response_lst)
         ]
 
-        assert len(crossed_population) == self.cfg.pop_size
+        assert len(crossed_population) == self.config.pop_size
         return crossed_population
 
     def mutate(self) -> list[dict]:
@@ -524,7 +544,7 @@ class HSEvo:
 
         responses = multi_chat_completion(
             [messages],
-            int(self.cfg.pop_size * self.mutation_rate),
+            int(self.config.pop_size * self.mutation_rate),
             self.cfg.model,
             self.cfg.temperature,
         )
@@ -546,11 +566,11 @@ class HSEvo:
 
     def initialize_harmony_memory(self, bounds):
         problem_size = len(bounds)
-        harmony_memory = np.zeros((self.cfg.hm_size, problem_size))
+        harmony_memory = np.zeros((self.config.hm_size, problem_size))
         for i in range(problem_size):
             lower_bound, upper_bound = bounds[i]
             harmony_memory[:, i] = np.random.uniform(
-                lower_bound, upper_bound, self.cfg.hm_size
+                lower_bound, upper_bound, self.config.hm_size
             )
         return harmony_memory
 
@@ -594,15 +614,15 @@ class HSEvo:
     def create_new_harmony(self, harmony_memory, bounds):
         new_harmony = np.zeros((harmony_memory.shape[1],))
         for i in range(harmony_memory.shape[1]):
-            if np.random.rand() < self.cfg.hmcr:
+            if np.random.rand() < self.config.hmcr:
                 new_harmony[i] = harmony_memory[
                     np.random.randint(0, harmony_memory.shape[0]), i
                 ]
-                if np.random.rand() < self.cfg.par:
+                if np.random.rand() < self.config.par:
                     adjustment = (
                         np.random.uniform(-1, 1)
                         * (bounds[i][1] - bounds[i][0])
-                        * self.cfg.bandwidth
+                        * self.config.bandwidth
                     )
                     new_harmony[i] += adjustment
             else:
@@ -669,10 +689,10 @@ class HSEvo:
             )
             == 0
         ):
-            self.function_evals -= self.cfg.hm_size
+            self.function_evals -= self.config.hm_size
             return None
 
-        for iteration in range(self.cfg.max_iter):
+        for iteration in range(self.config.max_iter):
             new_harmony = self.create_new_harmony(harmony_memory, bounds)
             population_hs, harmony_memory = self.update_harmony_memory(
                 population_hs,
@@ -687,7 +707,7 @@ class HSEvo:
         return population_hs[best_obj_id]
 
     def evolve(self):
-        while self.function_evals < self.cfg.max_fe:
+        while self.function_evals < self.config.max_fe:
             # If all individuals are invalid, stop
             if all([not individual["exec_success"] for individual in self.population]):
                 raise RuntimeError(

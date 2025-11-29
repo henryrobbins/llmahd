@@ -12,9 +12,3 @@ problem: tsp_constructive
 
 model: gpt-3.5-turbo
 temperature: 1.0
-
-# Main GA loop parameters
-max_fe: 1000 # maximum number of function evaluations
-pop_size: 10 # population size for GA
-init_pop_size: 4 # initial population size for GA
-timeout: 60 # timeout for evaluation of a single heuristic

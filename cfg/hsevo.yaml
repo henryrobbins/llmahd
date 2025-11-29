@@ -13,17 +13,3 @@ problem: tsp_aco
 # LLM parameters
 model: openai/gpt-4o-mini-2024-07-18 # LLM model
 temperature: 1.0
-
-# Main GA loop parameters
-max_fe: 450 # maximum number of function evaluations
-pop_size: 10 # population size for GA
-init_pop_size: 30 # initial population size for GA
-mutation_rate: 0.5 # mutation rate for GA
-timeout: 50 # timeout for evaluation of a single heuristic
-
-# Harmony search
-hm_size: 5
-hmcr: 0.7
-par: 0.5
-bandwidth: 0.2
-max_iter: 5

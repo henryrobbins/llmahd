@@ -1,6 +1,16 @@
+from dataclasses import dataclass
+
 from ga.mcts.source.mcts_ahd import MCTS_AHD
 from ga.mcts.source.config import Config
 from ga.mcts.problem_adapter import Problem
+
+
+@dataclass
+class AHDConfig:
+    max_fe: int = 1000  # maximum number of function evaluations
+    pop_size: int = 10  # population size for GA
+    init_pop_size: int = 4  # initial population size for GA
+    timeout: int = 60  # timeout for evaluation of a single heuristic
 
 
 class AHD:
@@ -9,10 +19,12 @@ class AHD:
         self.root_dir = root_dir
         self.problem = Problem(cfg, root_dir)
 
+        ahd_config = AHDConfig()
+
         self.paras = Config(
-            init_size=self.cfg.init_pop_size,
-            pop_size=self.cfg.pop_size,
-            ec_fe_max=self.cfg.max_fe,
+            init_size=ahd_config.init_pop_size,
+            pop_size=ahd_config.pop_size,
+            ec_fe_max=ahd_config.max_fe,
             exp_output_path=f"{workdir}/",
         )
 
