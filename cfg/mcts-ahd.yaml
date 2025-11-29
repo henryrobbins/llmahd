@@ -1,6 +1,5 @@
 defaults:
   - _self_
-  - llm_client: openai
   - override hydra/output: local
 
 hydra:
@@ -10,6 +9,9 @@ hydra:
 # The chosen algorithm
 algorithm: mcts_ahd
 problem: tsp_constructive
+
+model: gpt-3.5-turbo
+temperature: 1.0
 
 # Main GA loop parameters
 max_fe: 1000 # maximum number of function evaluations

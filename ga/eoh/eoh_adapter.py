@@ -3,8 +3,6 @@ from .original.eoh import EOH
 from .original.config import Config
 from .problem_adapter import Problem
 
-from utils.utils import init_client
-
 
 class EoH:
     def __init__(self, cfg, root_dir: str, client: BaseClient) -> None:
@@ -20,7 +18,7 @@ class EoH:
             exp_output_path="./",
         )
 
-        self.llm_client = init_client(self.cfg)
+        self.llm_client = client
 
     def evolve(self):
         print("- Evolution Start -")

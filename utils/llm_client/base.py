@@ -1,26 +1,36 @@
 import time
-from typing import Optional
-import time
 import logging
 import concurrent
 from random import random
 
+from dataclasses import dataclass
+
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class BaseLLMClientConfig:
+    model: str
+    temperature: float = 1.0
+
 
 class BaseClient(object):
     def __init__(
         self,
-        model: str,
-        temperature: float = 1.0,
+        config: BaseLLMClientConfig,
     ) -> None:
-        self.model = model
-        self.temperature = temperature
-    
-    def _chat_completion_api(self, messages: list[dict], temperature: float, n: int = 1):
-        raise NotImplemented
-    
-    def chat_completion(self, n: int, messages: list[dict], temperature: Optional[float] = None) -> list[dict]:
+        self.model = config.model
+        self.temperature = config.temperature
+
+    def _chat_completion_api(
+        self, messages: list[dict], temperature: float, n: int = 1
+    ) -> list[dict]:
+        raise NotImplementedError
+
+    def chat_completion(
+        self, n: int, messages: list[dict], temperature: float | None = None
+    ) -> list[dict]:
         """
         Generate n responses using OpenAI Chat Completions API
         """
@@ -38,44 +48,38 @@ class BaseClient(object):
         if response_cur is None:
             logger.info("Code terminated due to too many failed attempts!")
             exit()
-            
+
         return response_cur
-    
-    def multi_chat_completion(self, messages_list: list[list[dict]], n: int = 1, temperature: Optional[float] = None):
+
+    def multi_chat_completion(
+        self,
+        messages_list: list[list[dict]],
+        n: int = 1,
+        temperature: float | None = None,
+    ) -> list[str]:
         """
-        An example of messages_list:
-        
-        messages_list = [
-            [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "Hello!"},
-            ],
-            [
-                {"role": "system", "content": "You are a knowledgeable guide."},
-                {"role": "user", "content": "How are you?"},
-            ],
-            [
-                {"role": "system", "content": "You are a witty comedian."},
-                {"role": "user", "content": "Tell me a joke."},
-            ]
-        ]
+        Generate multiple chat completions in parallel.
         param: n: number of responses to generate for each message in messages_list
         """
-        # If messages_list is not a list of list (i.e., only one conversation), convert it to a list of list
+        # If messages_list is not a list of list (i.e., only one conversation),
+        # convert it to a list of list
         assert isinstance(messages_list, list), "messages_list should be a list."
         if not isinstance(messages_list[0], list):
             messages_list = [messages_list]
-        
+
         if len(messages_list) > 1:
             assert n == 1, "Currently, only n=1 is supported for multi-chat completion."
-        
+
         if "gpt" not in self.model:
             # Transform messages if n > 1
             messages_list *= n
             n = 1
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            args = [dict(n=n, messages=messages, temperature=temperature) for messages in messages_list]
+            args = [
+                dict(n=n, messages=messages, temperature=temperature)
+                for messages in messages_list
+            ]
             choices = executor.map(lambda p: self.chat_completion(**p), args)
 
         contents: list[str] = []

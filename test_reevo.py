@@ -3,8 +3,10 @@ import logging
 import os
 from pathlib import Path
 import subprocess
-from utils.utils import init_client, print_hyperlink
+from utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
+from utils.utils import print_hyperlink
 
+from ga.reevo.reevo import ReEvo as LHH
 
 ROOT_DIR = os.getcwd()
 logging.basicConfig(level=logging.INFO)
@@ -16,46 +18,16 @@ def main(cfg):
     # Set logging level
     logging.info(f"Workspace: {print_hyperlink(workspace_dir)}")
     logging.info(f"Project Root: {print_hyperlink(ROOT_DIR)}")
-    logging.info(f"Using LLM: {cfg.get('model', cfg.llm_client.model)}")
     logging.info(f"Using Algorithm: {cfg.algorithm}")
 
-    client = init_client(cfg)
-    # optional clients for operators (ReEvo)
-    long_ref_llm = (
-        hydra.utils.instantiate(cfg.llm_long_ref) if cfg.get("llm_long_ref") else None
+    config = OpenAIClientConfig(
+        model=cfg.model,
+        temperature=1.0,
+        api_key=os.getenv("OPENAI_API_KEY"),
     )
-    short_ref_llm = (
-        hydra.utils.instantiate(cfg.llm_short_ref) if cfg.get("llm_short_ref") else None
-    )
-    crossover_llm = (
-        hydra.utils.instantiate(cfg.llm_crossover) if cfg.get("llm_crossover") else None
-    )
-    mutation_llm = (
-        hydra.utils.instantiate(cfg.llm_mutation) if cfg.get("llm_mutation") else None
-    )
+    client = OpenAIClient(config)
 
-    if cfg.algorithm == "reevo":
-        from ga.reevo.reevo import ReEvo as LHH
-    elif cfg.algorithm == "ael":
-        from baselines.ael.ga import AEL as LHH
-    elif cfg.algorithm == "eoh":
-        from baselines.eoh import EoH as LHH
-    else:
-        raise NotImplementedError
-
-    # Main algorithm
-    if cfg.algorithm != "reevo":
-        lhh = LHH(cfg, ROOT_DIR, client)
-    else:
-        lhh = LHH(
-            cfg,
-            ROOT_DIR,
-            client,
-            long_reflector_llm=long_ref_llm,
-            short_reflector_llm=short_ref_llm,
-            crossover_llm=crossover_llm,
-            mutation_llm=mutation_llm,
-        )
+    lhh = LHH(cfg, ROOT_DIR, generator_llm=client)
 
     best_code_overall, best_code_path_overall = lhh.evolve()
     logging.info(f"Best Code Overall: {best_code_overall}")

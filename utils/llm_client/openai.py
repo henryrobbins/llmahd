@@ -1,14 +1,21 @@
+from dataclasses import dataclass
 import logging
-from typing import Optional
-from .base import BaseClient
+from utils.llm_client.base import BaseClient, BaseLLMClientConfig
 
 try:
     from openai import OpenAI
 except ImportError:
-    OpenAI = 'openai'
+    OpenAI = "openai"
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class OpenAIClientConfig(BaseLLMClientConfig):
+    base_url: str | None = None
+    api_key: str | None = None
+
 
 class OpenAIClient(BaseClient):
 
@@ -16,21 +23,24 @@ class OpenAIClient(BaseClient):
 
     def __init__(
         self,
-        model: str,
-        temperature: float = 1.0,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
+        config: OpenAIClientConfig,
     ) -> None:
-        super().__init__(model, temperature)
-        
+        super().__init__(config=config)
+
         if isinstance(self.ClientClass, str):
             logger.fatal(f"Package `{self.ClientClass}` is required")
             exit(-1)
-        
-        self.client = self.ClientClass(api_key=api_key, base_url=base_url)
-    
-    def _chat_completion_api(self, messages: list[dict], temperature: float, n: int = 1):
+
+        self.client = self.ClientClass(api_key=config.api_key, base_url=config.base_url)
+
+    def _chat_completion_api(
+        self, messages: list[dict], temperature: float, n: int = 1
+    ) -> list[dict]:
         response = self.client.chat.completions.create(
-            model=self.model, messages=messages, temperature=temperature, n=n, stream=False,
+            model=self.model,
+            messages=messages,
+            temperature=temperature,
+            n=n,
+            stream=False,
         )
         return response.choices

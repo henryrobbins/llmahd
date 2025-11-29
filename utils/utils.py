@@ -5,30 +5,6 @@ import concurrent.futures
 import time
 import re
 import inspect
-import hydra
-import os
-
-
-def init_client(cfg):
-    global client
-    if cfg.get("model", None):  # for compatibility
-        model: str = cfg.get("model")
-        temperature: float = cfg.get("temperature", 1.0)
-        if model.startswith("gpt"):
-            from utils.llm_client.openai import OpenAIClient
-
-            client = OpenAIClient(model, temperature)
-        elif cfg.model.startswith("GLM"):
-            from utils.llm_client.zhipuai import ZhipuAIClient
-
-            client = ZhipuAIClient(model, temperature)
-        else:  # fall back to Llama API
-            from utils.llm_client.llama_api import LlamaAPIClient
-
-            client = LlamaAPIClient(model, temperature)
-    else:
-        client = hydra.utils.instantiate(cfg.llm_client)
-    return client
 
 
 def file_to_string(filename):

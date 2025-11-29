@@ -12,7 +12,7 @@ problem: tsp_aco
 
 # LLM parameters
 model: openai/gpt-4o-mini-2024-07-18 # LLM model
-temperature: 1 # temperature for chat completion
+temperature: 1.0
 
 # Main GA loop parameters
 max_fe: 450 # maximum number of function evaluations

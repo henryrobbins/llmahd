@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import subprocess
 
+from ga.hsevo.hsevo import HSEvo as LHH
 
 ROOT_DIR = os.getcwd()
 logging.basicConfig(level=logging.INFO)
@@ -15,21 +16,7 @@ def main(cfg):
     # Set logging level
     logging.info(f"Workspace: {workspace_dir}")
     logging.info(f"Project Root: {ROOT_DIR}")
-    logging.info(f"Using LLM: {cfg.model}")
     logging.info(f"Using Algorithm: {cfg.algorithm}")
-
-    if cfg.algorithm == "hsevo":
-        from ga.hsevo.hsevo import HSEvo as LHH
-    elif cfg.algorithm == "reevo":
-        from baselines.reevo import ReEvo as LHH
-    elif cfg.algorithm == "reevo-hs":
-        from variants.reevo import ReEvoHS as LHH
-    elif cfg.algorithm == "reevo-rf":
-        from variants.reevo import ReEvoRF as LHH
-    elif cfg.algorithm == "eoh":
-        from baselines.eoh import EoH as LHH
-    else:
-        raise NotImplementedError
 
     # Main algorithm
     lhh = LHH(cfg, ROOT_DIR)

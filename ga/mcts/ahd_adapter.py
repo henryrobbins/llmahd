@@ -1,7 +1,6 @@
 from ga.mcts.source.mcts_ahd import MCTS_AHD
 from ga.mcts.source.config import Config
 from ga.mcts.problem_adapter import Problem
-from utils.utils import init_client
 
 
 class AHD:
@@ -17,7 +16,7 @@ class AHD:
             exp_output_path=f"{workdir}/",
         )
 
-        self.llm_client = init_client(self.cfg)
+        self.llm_client = client
 
     def evolve(self):
         print("- Evolution Start -")

@@ -3,7 +3,7 @@ import logging
 import os
 from pathlib import Path
 import subprocess
-from utils.utils import init_client
+from utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
 from ga.mcts.ahd_adapter import AHD as LHH
 
 ROOT_DIR = os.getcwd()
@@ -16,10 +16,14 @@ def main(cfg):
     # Set logging level
     logging.info(f"Workspace: {workspace_dir}")
     logging.info(f"Project Root: {ROOT_DIR}")
-    logging.info(f"Using LLM: {cfg.get('model', cfg.llm_client.model)}")
     logging.info(f"Using Algorithm: {cfg.algorithm}")
 
-    client = init_client(cfg)
+    config = OpenAIClientConfig(
+        model=cfg.model,
+        temperature=1.0,
+        api_key=os.getenv("OPENAI_API_KEY"),
+    )
+    client = OpenAIClient(config)
 
     # Main algorithm
     lhh = LHH(cfg, ROOT_DIR, workspace_dir, client)

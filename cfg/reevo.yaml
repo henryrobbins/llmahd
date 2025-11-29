@@ -1,11 +1,5 @@
 defaults:
   - _self_
-  - llm_client: openai
-  # [Optional] set different clients for operators
-  - llm_client@llm_long_ref: null
-  - llm_client@llm_short_ref: null
-  - llm_client@llm_crossover: null
-  - llm_client@llm_mutation: null
   - override hydra/output: local
   - override hydra/job_logging: colorlog
   - override hydra/hydra_logging: colorlog
@@ -17,6 +11,9 @@ hydra:
 # The chosen algorithm
 algorithm: reevo # other options are "eoh", "ael"; some problems may not support "ael"
 problem: tsp_aco
+
+model: gpt-3.5-turbo
+temperature: 1.0
 
 # Main GA loop parameters
 max_fe: 100 # maximum number of function evaluations
