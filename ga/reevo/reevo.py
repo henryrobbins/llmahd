@@ -32,20 +32,17 @@ class ReEvo:
     ) -> None:
         self.cfg = cfg
 
-        self.problem = self.cfg.problem.problem_name
-        self.problem_size = self.cfg.problem.problem_size
-        self.obj_type = self.cfg.problem.obj_type
-        self.problem_type = self.cfg.problem.problem_type
-
         self.root_dir = root_dir
         self.prompt_dir = f"{self.root_dir}/prompts"
-        self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
 
         self.prompts = ProblemPrompts.load_problem_prompts(
-            func_name=self.cfg.problem.func_name,
-            problem_desc=self.cfg.problem.description,
-            path=f"{self.prompt_dir}/{self.problem}",
+            path=f"{self.prompt_dir}/{self.cfg.problem}",
         )
+
+        self.output_file = (
+            f"{self.root_dir}/problems/{self.prompts.problem_name}/gpt.py"
+        )
+
         self.evol = Evolution(
             init_pop_size=self.cfg.init_pop_size,
             pop_size=self.cfg.pop_size,
@@ -209,7 +206,7 @@ class ReEvo:
                 try:
                     individual["obj"] = (
                         float(stdout_str.split("\n")[-2])
-                        if self.obj_type == "min"
+                        if self.prompts.obj_type == "min"
                         else -float(stdout_str.split("\n")[-2])
                     )
                     individual["exec_success"] = True
@@ -239,16 +236,16 @@ class ReEvo:
         # Execute the python file with flags
         with open(individual["stdout_filepath"], "w") as f:
             eval_file_path = (
-                f"{self.root_dir}/problems/{self.problem}/eval.py"
-                if self.problem_type != "black_box"
-                else f"{self.root_dir}/problems/{self.problem}/eval_black_box.py"
+                f"{self.root_dir}/problems/{self.prompts.problem_name}/eval.py"
+                if self.prompts.problem_type != "black_box"
+                else f"{self.root_dir}/problems/{self.prompts.problem_name}/eval_black_box.py"
             )
             process = subprocess.Popen(
                 [
                     "python",
                     "-u",
                     eval_file_path,
-                    f"{self.problem_size}",
+                    f"{self.prompts.problem_size}",
                     self.root_dir,
                     "train",
                 ],
@@ -297,7 +294,7 @@ class ReEvo:
         """
         Rank-based selection, select individuals with probability proportional to their rank.
         """
-        if self.problem_type == "black_box":
+        if self.prompts.problem_type == "black_box":
             population = [
                 individual
                 for individual in population
@@ -333,7 +330,7 @@ class ReEvo:
         """
         selected_population = []
         # Eliminate invalid individuals
-        if self.problem_type == "black_box":
+        if self.prompts.problem_type == "black_box":
             population = [
                 individual
                 for individual in population

@@ -3,6 +3,8 @@ import os
 import subprocess
 import re
 
+import yaml
+
 from utils.utils import block_until_running, file_to_string, filter_traceback
 from ga.eoh.original.prompts.problem import ProblemPrompts
 
@@ -10,9 +12,9 @@ from ga.eoh.original.prompts.problem import ProblemPrompts
 def adapt_prompt(problem_cfg: dict, root_dir: str):
 
     cfg = problem_cfg
-    problem = problem_cfg.problem_name
+    problem = problem_cfg["problem_name"]
     root_dir = root_dir
-    problem_type = problem_cfg.problem_type
+    problem_type = problem_cfg["problem_type"]
     prompt_dir = f"{root_dir}/prompts"
 
     prompt_path_suffix = "_black_box" if problem_type == "black_box" else ""
@@ -43,7 +45,7 @@ def adapt_prompt(problem_cfg: dict, root_dir: str):
         prompt_func_outputs = ["result"]
 
     return ProblemPrompts(
-        prompt_task=cfg.description,
+        prompt_task=cfg["description"],
         prompt_func_name=prompt_func_name,
         prompt_func_inputs=prompt_func_inputs,
         prompt_func_outputs=prompt_func_outputs,
@@ -57,11 +59,14 @@ class Problem:
         self.config = cfg
         self.root_dir = root_dir
 
-        self.problem = self.config.problem.problem_name
-        self.problem_description = self.config.problem.description
-        self.problem_size = self.config.problem.problem_size
-        self.obj_type = self.config.problem.obj_type
-        self.problem_type = self.config.problem.problem_type
+        with open(f"{self.root_dir}/prompts/{cfg.problem}/problem.yaml", "r") as f:
+            problem_config = yaml.safe_load(f)
+
+        self.problem = problem_config["problem_name"]
+        self.problem_description = problem_config["description"]
+        self.problem_size = problem_config["problem_size"]
+        self.obj_type = problem_config["obj_type"]
+        self.problem_type = problem_config["problem_type"]
         self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
 
         if self.problem_type == "tsp_constructive":
@@ -73,7 +78,7 @@ class Problem:
 
             self.prompts = BPP_ONLINE_PROMPTS
         else:
-            self.prompts = adapt_prompt(self.config.problem, root_dir)
+            self.prompts = adapt_prompt(problem_config, root_dir)
 
     def response_to_individual(self, code, response_id, file_name=None) -> dict:
         """

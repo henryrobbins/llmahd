@@ -1,6 +1,5 @@
 defaults:
   - _self_
-  - problem: tsp_aco
   - override hydra/output: local
 
 hydra:
@@ -9,6 +8,7 @@ hydra:
 
 # The chosen algorithm
 algorithm: hsevo
+problem: tsp_aco
 
 # LLM parameters
 model: openai/gpt-4o-mini-2024-07-18 # LLM model

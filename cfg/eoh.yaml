@@ -1,6 +1,5 @@
 defaults:
   - _self_
-  - problem: tsp_aco
   - llm_client: openai
   # [Optional] set different clients for operators
   - llm_client@llm_long_ref: null
@@ -13,11 +12,11 @@ defaults:
 
 hydra:
   job:
-    name: ${problem.problem_name}-${problem.problem_type}
     chdir: True
 
 # The chosen algorithm
 algorithm: eoh # other options are "eoh", "ael"; some problems may not support "ael"
+problem: tsp_aco
 
 # Main GA loop parameters
 max_fe: 100 # maximum number of function evaluations

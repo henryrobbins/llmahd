@@ -1,16 +1,15 @@
 defaults:
   - _self_
-  - problem: tsp_constructive
   - llm_client: openai
   - override hydra/output: local
 
 hydra:
   job:
-    name: ${problem.problem_name}-${problem.problem_type}
     chdir: True
 
 # The chosen algorithm
 algorithm: mcts_ahd
+problem: tsp_constructive
 
 # Main GA loop parameters
 max_fe: 1000 # maximum number of function evaluations

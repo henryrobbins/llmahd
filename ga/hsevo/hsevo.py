@@ -34,19 +34,12 @@ class HSEvo:
         self.lst_good_reflection = []
         self.lst_bad_reflection = []
 
-        self.problem = self.cfg.problem.problem_name
-        self.problem_size = self.cfg.problem.problem_size
-        self.obj_type = self.cfg.problem.obj_type
-        self.problem_type = self.cfg.problem.problem_type
-
         self.hsevo_dir = f"{self.root_dir}/ga/hsevo"
         self.prompt_dir = f"{self.root_dir}/prompts"
-        self.output_file = f"{self.root_dir}/problems/{self.problem}/gpt.py"
+        self.output_file = f"{self.root_dir}/problems/{self.cfg.problem}/gpt.py"
 
         self.prompts = ProblemPrompts.load_problem_prompts(
-            func_name=self.cfg.problem.func_name,
-            problem_desc=self.cfg.problem.description,
-            path=f"{self.prompt_dir}/{self.problem}",
+            path=f"{self.prompt_dir}/{self.cfg.problem}",
         )
         self.evol = Evolution(prompts=self.prompts, root_dir=root_dir)
 
@@ -209,7 +202,7 @@ class HSEvo:
 
             logging.info(f"Iteration {self.iteration}: Running Code {response_id}")
 
-            if self.problem == "tsp_gls":
+            if self.prompts.problem_name == "tsp_gls":
                 pass
                 # try:
                 #     # Use sandboxed execution for 'tsp_gls'
@@ -239,12 +232,14 @@ class HSEvo:
 
             individual = population[response_id]
 
-            if self.problem == "tsp_gls":
+            if self.prompts.problem_name == "tsp_gls":
                 result, run_ok = inner_run
                 if run_ok:
                     try:
                         individual["obj"] = (
-                            float(result) if self.obj_type == "min" else -float(result)
+                            float(result)
+                            if self.prompts.obj_type == "min"
+                            else -float(result)
                         )
                         individual["exec_success"] = True
                     except:
@@ -277,7 +272,7 @@ class HSEvo:
                     try:
                         individual["obj"] = (
                             float(stdout_str.split("\n")[-2])
-                            if self.obj_type == "min"
+                            if self.prompts.obj_type == "min"
                             else -float(stdout_str.split("\n")[-2])
                         )
                         individual["exec_success"] = True
@@ -312,16 +307,16 @@ class HSEvo:
         # Execute the python file with flags
         with open(individual["stdout_filepath"], "w") as f:
             eval_file_path = (
-                f"{self.root_dir}/problems/{self.problem}/eval.py"
-                if self.problem_type != "black_box"
-                else f"{self.root_dir}/problems/{self.problem}/eval_black_box.py"
+                f"{self.root_dir}/problems/{self.prompts.problem_name}/eval.py"
+                if self.prompts.problem_type != "black_box"
+                else f"{self.root_dir}/problems/{self.prompts.problem_name}/eval_black_box.py"
             )
             process = subprocess.Popen(
                 [
                     "python",
                     "-u",
                     eval_file_path,
-                    f"{self.problem_size}",
+                    f"{self.prompts.problem_size}",
                     self.root_dir,
                     "train",
                 ],
@@ -364,7 +359,7 @@ class HSEvo:
         """
         selected_population = []
         # Eliminate invalid individuals
-        if self.problem_type == "black_box":
+        if self.prompts.problem_type == "black_box":
             population = [
                 individual
                 for individual in population
