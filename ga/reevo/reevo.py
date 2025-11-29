@@ -197,7 +197,6 @@ class ReEvo:
                 stdout_str = f.read()
             traceback_msg = filter_traceback(stdout_str)
 
-            individual = population[response_id]
             # Store objective value for each individual
             if traceback_msg == "":  # If execution has no error
                 try:

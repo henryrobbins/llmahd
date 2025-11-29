@@ -44,7 +44,8 @@ class InterfaceEC:
     def population_generation_seed(self, seeds: list[Heuristic]) -> list[Heuristic]:
 
         population: list[Heuristic] = []
-        fitness = self.interface_eval.batch_evaluate([seed.code for seed in seeds])
+        pop = self.interface_eval.batch_evaluate([seed.code for seed in seeds])
+        fitness = [indiv["obj"] for indiv in pop]
         for i in range(len(seeds)):
             obj = np.array(fitness[i])
             seed_alg = Heuristic(
@@ -119,9 +120,10 @@ class InterfaceEC:
             p, offspring = self.get_offspring(pop, operator)
             offspring_list.append((p, offspring))
 
-        objs = self.interface_eval.batch_evaluate(
+        pop = self.interface_eval.batch_evaluate(
             [offspring.code for _, offspring in offspring_list], 0
         )
+        objs = [indiv["obj"] for indiv in pop]
         for i, (_, offspring) in enumerate(offspring_list):
             offspring.objective = np.round(objs[i], 5)
 

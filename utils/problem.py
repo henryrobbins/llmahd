@@ -202,16 +202,17 @@ class Problem:
 
     def batch_evaluate(self, codes: list[str], iteration: int) -> str | list[float]:
         """
-        Evaluate population by running code in parallel and computing objective values and fitness.
+        Evaluate population by running code in parallel and computing objective values.
         """
         self.iteration = iteration
+
         population = [
             self.response_to_individual(resp, index) for index, resp in enumerate(codes)
         ]
+
         inner_runs = []
         # Run code to evaluate
         for response_id in range(len(population)):
-            runid = hash(population[response_id]["code"])
             # Skip if response is invalid
             if population[response_id]["code"] is None:
                 population[response_id] = self.mark_invalid_individual(
@@ -220,8 +221,7 @@ class Problem:
                 inner_runs.append(None)
                 continue
 
-            logging.info(f"Iteration {self.iteration}: Running Code {runid}")
-            individual = population[response_id]
+            logging.info(f"Iteration {self.iteration}: Running Code {response_id}")
 
             try:
                 process = self._run_code(population[response_id], response_id)
@@ -248,7 +248,7 @@ class Problem:
                     population[response_id], str(e)
                 )
                 inner_run.kill()
-                return "timeout"
+                continue
 
             individual = population[response_id]
             stdout_filepath = individual["stdout_filepath"]
@@ -256,7 +256,7 @@ class Problem:
                 stdout_str = f.read()
             traceback_msg = filter_traceback(stdout_str)
 
-            # Store objective value and fitness for each individual
+            # Store objective value for each individual
             if traceback_msg == "":  # If execution has no error
                 try:
                     individual["obj"] = float(stdout_str.split("\n")[-2])
@@ -268,7 +268,6 @@ class Problem:
                         if self.problem_config.obj_type == "max"
                         else individual["obj"]
                     )
-                    # individual["fitness"] = 1 / individual["obj"] if self.problem_config.obj_type == "min" else individual["obj"]
                     individual["exec_success"] = True
                 except:
                     population[response_id] = self.mark_invalid_individual(
@@ -282,7 +281,7 @@ class Problem:
             logging.info(
                 f"Iteration {self.iteration}, response_id {response_id}: Objective value: {individual['obj']}"
             )
-        return [indiv["obj"] for indiv in population]
+        return population
 
     def _run_code(self, individual: dict, response_id) -> subprocess.Popen:
         """

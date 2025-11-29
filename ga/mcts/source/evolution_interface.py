@@ -116,7 +116,7 @@ class InterfaceEC:
         while True:
             n_evals += 1
             _, offspring = self.get_offspring(pop, operator)
-            obj = self.interface_eval.batch_evaluate([offspring.code], 0)[0]
+            obj = self.interface_eval.batch_evaluate([offspring.code], 0)[0]["obj"]
             if (
                 obj == "timeout"
                 or obj == float("inf")
@@ -133,7 +133,8 @@ class InterfaceEC:
         for i in range(3):
             eval_times += 1
             _, offspring = self.get_offspring(pop, operator, father=node)
-            objs = self.interface_eval.batch_evaluate([offspring["code"]], 0)
+            population = self.interface_eval.batch_evaluate([offspring["code"]], 0)
+            objs = [indiv["obj"] for indiv in population]
             if objs == "timeout":
                 return eval_times, None
             if objs[0] == float("inf") or self.check_duplicate(pop, offspring["code"]):
