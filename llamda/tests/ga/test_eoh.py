@@ -1,50 +1,42 @@
 from importlib.resources import files
 import logging
 import os
-from pathlib import Path
+
+import pytest
 
 from llamda.utils.evaluate import Evaluator
 from llamda.utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
 from llamda.utils.problem import ProblemPrompts, adapt_prompt
-from llamda.utils.utils import get_output_dir, print_hyperlink
+from llamda.utils.utils import get_output_dir
 from llamda.ga.eoh.eoh import EOH, EoHConfig
 
 ROOT_DIR = os.getcwd()
+ouput_dir = get_output_dir("test_eoh", ROOT_DIR)
 logging.basicConfig(level=logging.INFO)
 
 
-def test_eoh() -> None:
-    problem_name = "tsp_aco"
+@pytest.mark.parametrize("problem_name", ["tsp_aco"])
+def test_eoh(problem_name: str) -> None:
 
-    workspace_dir = Path.cwd()
-    # Set logging level
-    logging.info(f"Workspace: {print_hyperlink(workspace_dir)}")
-
-    config = OpenAIClientConfig(
-        model="gpt-3.5-turbo",
-        temperature=1.0,
-        api_key=os.getenv("OPENAI_API_KEY"),
+    client = OpenAIClient(
+        config=OpenAIClientConfig(
+            model="gpt-3.5-turbo",
+            temperature=1.0,
+            api_key=os.getenv("OPENAI_API_KEY"),
+        )
     )
-    client = OpenAIClient(config)
-
-    # ========================================================================
-    root_dir = ROOT_DIR
-    ouput_dir = get_output_dir("test_eoh", root_dir)
-
-    problems_dir = files("llamda.prompts.problems")
-    problem_config = ProblemPrompts.load_problem_prompts(
-        str(problems_dir / problem_name)
+    problem_prompts = ProblemPrompts.load_problem_prompts(
+        str(files("llamda.prompts.problems") / problem_name)
     )
-    prompts = adapt_prompt(problem_config)
+    eoh_problem_prompts = adapt_prompt(problem_prompts)
 
-    evaluator = Evaluator(prompts)
+    llh = EOH(
+        config=EoHConfig(),
+        problem=eoh_problem_prompts,
+        evaluator=Evaluator(eoh_problem_prompts),
+        llm_client=client,
+        output_dir=ouput_dir,
+    )
 
-    eoh_config = EoHConfig()
-
-    # ========================================================================
-
-    # Main algorithm
-    llh = EOH(eoh_config, prompts, evaluator, client, output_dir=ouput_dir)
-
-    best_code_overall, best_code_path_overall = llh.run()
+    best_code_overall, _ = llh.run()
     logging.info(f"Best Code Overall: {best_code_overall}")

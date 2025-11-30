@@ -1,9 +1,10 @@
 from importlib.resources import files
 import logging
 import os
-from pathlib import Path
 
-from llamda.ga.hsevo.hsevo import HSEvo as LHH, HSEvoConfig
+import pytest
+
+from llamda.ga.hsevo.hsevo import HSEvo, HSEvoConfig
 from llamda.utils.evaluate import Evaluator
 from llamda.utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
 from llamda.utils.problem import ProblemPrompts
@@ -14,37 +15,29 @@ output_dir = get_output_dir("test_hsevo", ROOT_DIR)
 logging.basicConfig(level=logging.INFO)
 
 
-def test_hsevo() -> None:
-    problem_name = "tsp_aco"
+@pytest.mark.parametrize("problem_name", ["tsp_aco"])
+def test_hsevo(problem_name: str) -> None:
 
-    workspace_dir = Path.cwd()
-    # Set logging level
-    logging.info(f"Workspace: {workspace_dir}")
-    logging.info(f"Project Root: {ROOT_DIR}")
-
-    llm_config = OpenAIClientConfig(
-        model="gpt-4o-mini-2024-07-18",
-        temperature=1.0,
-        api_key=os.getenv("OPENAI_API_KEY"),
+    client = OpenAIClient(
+        config=OpenAIClientConfig(
+            model="gpt-4o-mini-2024-07-18",
+            temperature=1.0,
+            api_key=os.getenv("OPENAI_API_KEY"),
+        )
     )
-    client = OpenAIClient(llm_config)
+    prompts = ProblemPrompts.load_problem_prompts(
+        str(files("llamda.prompts.problems") / problem_name)
+    )
 
-    prompt_dir = files("llamda.prompts.problems")
-    prompts = ProblemPrompts.load_problem_prompts(str(prompt_dir / problem_name))
-
-    config = HSEvoConfig()
-
-    evaluator = Evaluator(prompts)
-
-    # Main algorithm
-    lhh = LHH(
-        config=config,
+    hsevo = HSEvo(
+        config=HSEvoConfig(),
         problem_prompts=prompts,
-        evaluator=evaluator,
+        evaluator=Evaluator(prompts),
         llm_client=client,
         temperature=1.0,
         output_dir=output_dir,
     )
-    best_code_overall, best_code_path_overall = lhh.evolve()
+
+    best_code_overall, best_code_path_overall = hsevo.evolve()
     logging.info(f"Best Code Overall: {best_code_overall}")
     logging.info(f"Best Code Path Overall: {best_code_path_overall}")
