@@ -63,7 +63,6 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
 
         self.mutation_rate = self.config.mutation_rate
         self.iteration = 0
-        self.function_evals = 0
         self.prompt_tokens = 0
         self.completion_tokens = 0
         self.elitist = None
@@ -556,7 +555,7 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
             )
             == 0
         ):
-            self.function_evals -= self.config.hm_size
+            self.evaluator.function_evals -= self.config.hm_size
             return None
 
         for iteration in range(self.config.max_iter):
@@ -587,7 +586,7 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
                 file.writelines("\n".join(map(str, objs + [self.local_sel_hs])) + "\n")
 
     def evolve(self) -> tuple[str, str]:
-        while self.function_evals < self.config.max_fe:
+        while self.evaluator.function_evals < self.config.max_fe:
             # If all individuals are invalid, stop
             if all([not individual.exec_success for individual in self.population]):
                 raise RuntimeError(
