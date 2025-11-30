@@ -11,8 +11,9 @@ T = TypeVar("T", bound=Individual)
 
 
 class Evaluator:
-    def __init__(self, problem_prompts: BaseProblemPrompts):
+    def __init__(self, problem_prompts: BaseProblemPrompts, timeout: int = 30) -> None:
         self.problem_prompts = problem_prompts
+        self.timeout = timeout
 
         problems_dir = files("llamda.problems")
 
@@ -64,7 +65,7 @@ class Evaluator:
                 continue
             try:
                 inner_run.communicate(
-                    timeout=self.config.timeout
+                    timeout=self.timeout
                 )  # Wait for code execution to finish
             except subprocess.TimeoutExpired as e:
                 logging.info(f"Error for response_id {response_id}: {e}")

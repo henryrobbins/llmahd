@@ -21,7 +21,6 @@ class ReEvoConfig:
     pop_size: int = 10  # population size for GA
     init_pop_size: int = 30  # initial population size for GA
     mutation_rate: float = 0.5  # mutation rate for GA
-    timeout: int = 20  # timeout for evaluation of a single heuristic
     diversify_init_pop: bool = True  # whether to diversify the initial population
 
 

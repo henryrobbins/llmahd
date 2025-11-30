@@ -32,7 +32,7 @@ def test_hsevo(problem_name: str) -> None:
     hsevo = HSEvo(
         config=HSEvoConfig(),
         problem=prompts,
-        evaluator=Evaluator(prompts),
+        evaluator=Evaluator(prompts, timeout=50),
         llm_client=client,
         output_dir=output_dir,
     )

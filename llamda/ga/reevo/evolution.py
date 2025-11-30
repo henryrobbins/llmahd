@@ -43,7 +43,7 @@ class Evolution:
         self.llm_clients = llm_clients
         self.prompts = prompts
 
-        self.reevo_prompts_dir = files('llamda.prompts.ga.reevo')
+        self.reevo_prompts_dir = files("llamda.prompts.ga.reevo")
 
         # Common prompts
         self.system_generator_prompt = file_to_string(
@@ -62,7 +62,7 @@ class Evolution:
 
     def seed_population(self, long_term_reflection_str: str) -> list[str]:
 
-        seed_prompt = file_to_string(f"{self.reevo_dir}/prompts/seed.txt").format(
+        seed_prompt = file_to_string(self.reevo_prompts_dir / "seed.txt").format(
             seed_func=self.prompts.seed_func,
             func_name=self.prompts.func_name,
         )

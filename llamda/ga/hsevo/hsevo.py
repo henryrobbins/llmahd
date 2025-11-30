@@ -27,7 +27,6 @@ class HSEvoConfig:
     pop_size: int = 10  # population size for GA
     init_pop_size: int = 30  # initial population size for GA
     mutation_rate: float = 0.5  # mutation rate for GA
-    timeout: int = 50  # timeout for evaluation of a single heuristic
 
     # Harmony search
     hm_size: int = 5

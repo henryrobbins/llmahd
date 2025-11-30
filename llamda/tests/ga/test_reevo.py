@@ -32,7 +32,7 @@ def test_reevo(problem_name: str) -> None:
     reevo = ReEvo(
         config=ReEvoConfig(),
         problem=prompts,
-        evaluator=Evaluator(prompts),
+        evaluator=Evaluator(prompts, timeout=20),
         output_dir=output_dir,
         llm_client=client,
     )
