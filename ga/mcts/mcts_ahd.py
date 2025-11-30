@@ -1,3 +1,4 @@
+import os
 import copy
 import heapq
 import json
@@ -29,11 +30,14 @@ class MCTS_AHD:
         prompts: EOHProblemPrompts,
         evaluator: Evaluator,
         llm_client: BaseClient,
+        output_dir: str,
     ) -> None:
 
         self.prompts = prompts
         self.evaluator = evaluator
         self.llm_client = llm_client
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
 
         # MCTS Configuration
         self.init_size = paras.init_size
@@ -153,6 +157,7 @@ class MCTS_AHD:
             prompts=self.prompts,
             evaluator=self.evaluator,
             llm_client=self.llm_client,
+            output_dir=self.output_dir,
         )
 
         brothers: list[MCTSIndividual] = []

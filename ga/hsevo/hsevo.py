@@ -41,7 +41,12 @@ class HSEvoIndividual(Individual):
 
 class HSEvo:
     def __init__(
-        self, problem_name: str, model: str, temperature: float, root_dir: str
+        self,
+        problem_name: str,
+        model: str,
+        temperature: float,
+        root_dir: str,
+        output_dir: str,
     ) -> None:
 
         self.problem = problem_name
@@ -50,6 +55,8 @@ class HSEvo:
 
         self.config = HSEvoConfig()
         self.root_dir = root_dir
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
 
         self.mutation_rate = self.config.mutation_rate
         self.iteration = 0
@@ -144,7 +151,7 @@ class HSEvo:
             messages_lst.append(messages)
 
             # Write to file
-            file_name = f"problem_iter{self.iteration}_prompt{i}.txt"
+            file_name = f"{self.output_dir}/problem_iter{self.iteration}_prompt{i}.txt"
             with open(file_name, "w") as file:
                 file.writelines(json.dumps(pre_messages))
 
@@ -177,6 +184,7 @@ class HSEvo:
             if file_name is None
             else file_name + ".txt"
         )
+        file_name = f"{self.output_dir}/{file_name}"
         with open(file_name, "w", encoding="utf-8") as file:
             file.writelines(response + "\n")
 
@@ -298,11 +306,15 @@ class HSEvo:
         self.str_flash_memory = flash_reflection_json
 
         # Write reflections to file
-        file_name = f"problem_iter{self.iteration}_lst_code_method.txt"
+        file_name = (
+            f"{self.output_dir}/problem_iter{self.iteration}_lst_code_method.txt"
+        )
         with open(file_name, "w") as file:
             file.writelines(json.dumps(pre_messages))
 
-        file_name = f"problem_iter{self.iteration}_flash_reflection.txt"
+        file_name = (
+            f"{self.output_dir}/problem_iter{self.iteration}_flash_reflection.txt"
+        )
         with open(file_name, "w") as file:
             file.writelines(flash_reflection_res)
 
@@ -323,11 +335,11 @@ class HSEvo:
             self.prompts.external_knowledge + "\n" + comprehensive_response
         )
 
-        file_name = f"problem_iter{self.iteration}_comprehensive_reflection_prompt.txt"
+        file_name = f"{self.output_dir}/problem_iter{self.iteration}_comprehensive_reflection_prompt.txt"
         with open(file_name, "w") as file:
             file.writelines(json.dumps(pre_messages))
 
-        file_name = f"problem_iter{self.iteration}_comprehensive_reflection.txt"
+        file_name = f"{self.output_dir}/problem_iter{self.iteration}_comprehensive_reflection.txt"
         with open(file_name, "w") as file:
             file.writelines(self.str_comprehensive_memory)
 
@@ -353,7 +365,7 @@ class HSEvo:
             messages = format_messages(pre_messages)
 
             # Write to file
-            file_name = f"problem_iter{self.iteration}_response{num_choice}_prompt.txt"
+            file_name = f"{self.output_dir}/problem_iter{self.iteration}_response{num_choice}_prompt.txt"
             with open(file_name, "w") as file:
                 file.writelines(json.dumps(pre_messages))
             num_choice += 1
@@ -382,7 +394,7 @@ class HSEvo:
         messages = format_messages(pre_messages)
 
         # Write to file
-        file_name = f"problem_iter{self.iteration}_prompt.txt"
+        file_name = f"{self.output_dir}/problem_iter{self.iteration}_prompt.txt"
         with open(file_name, "w") as file:
             file.writelines(json.dumps(pre_messages))
 
@@ -510,7 +522,7 @@ class HSEvo:
         messages = format_messages(pre_messages)
 
         # Write to file
-        file_name = f"problem_iter{self.iteration}_prompt.txt"
+        file_name = f"{self.output_dir}/problem_iter{self.iteration}_prompt.txt"
         with open(file_name, "w") as file:
             file.writelines(json.dumps(pre_messages))
 
@@ -562,11 +574,11 @@ class HSEvo:
     ) -> None:
         objs = [individual.obj for individual in population]
         if logHS is False:
-            file_name = f"objs_log_iter{self.iteration}.txt"
+            file_name = f"{self.output_dir}/objs_log_iter{self.iteration}.txt"
             with open(file_name, "w") as file:
                 file.writelines("\n".join(map(str, objs)) + "\n")
         else:
-            file_name = f"objs_log_iter{self.iteration}_hs.txt"
+            file_name = f"{self.output_dir}/objs_log_iter{self.iteration}_hs.txt"
             with open(file_name, "w") as file:
                 file.writelines("\n".join(map(str, objs + [self.local_sel_hs])) + "\n")
 

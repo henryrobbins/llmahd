@@ -23,11 +23,13 @@ class InterfaceEC:
         interface_prob: EOHProblemPrompts,
         evaluator: Evaluator,
         llm_client: BaseClient,
+        output_dir: str,
     ):
         self.pop_size = pop_size
         self.m = m
         self.interface_eval = evaluator
         self.evol = Evolution(llm_client=llm_client, prompts=interface_prob)
+        self.output_dir = output_dir
 
     def check_duplicate(self, population: list[EOHIndividual], code: str) -> bool:
         for ind in population:
@@ -48,7 +50,10 @@ class InterfaceEC:
         self, seeds: list[EOHIndividual]
     ) -> list[EOHIndividual]:
 
-        population = [hydrate_individual(indiv, i) for i, indiv in enumerate(seeds)]
+        population = [
+            hydrate_individual(indiv, i, self.output_dir)
+            for i, indiv in enumerate(seeds)
+        ]
         population = self.interface_eval.batch_evaluate(population)
         print("Initiliazation finished! Get " + str(len(seeds)) + " seed algorithms")
         return population
@@ -115,7 +120,10 @@ class InterfaceEC:
             offspring_list.append((p, offspring))
 
         pop = [offspring for _, offspring in offspring_list]
-        pop = [hydrate_individual(offspring, i) for i, offspring in enumerate(pop)]
+        pop = [
+            hydrate_individual(offspring, i, self.output_dir)
+            for i, offspring in enumerate(pop)
+        ]
         pop = self.interface_eval.batch_evaluate(pop, 0)
         objs = [indiv.obj for indiv in pop]
         for i, (_, offspring) in enumerate(offspring_list):

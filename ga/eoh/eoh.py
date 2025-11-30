@@ -4,6 +4,7 @@ import json
 import random
 import heapq
 import time
+import os
 
 from ga.eoh.eoh_evolution import EOHOperator
 from ga.eoh.config import Config
@@ -31,11 +32,14 @@ class EOH:
         problem: EOHProblemPrompts,
         evaluator: Evaluator,
         llm_client: BaseClient,
+        output_dir: str,
     ) -> None:
 
         self.prob = problem
         self.evaluator = evaluator
         self.llm_client = llm_client
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
 
         # EOH Configuration
         self.pop_size = config.ec_pop_size
@@ -146,6 +150,7 @@ class EOH:
             llm_client=self.llm_client,
             interface_prob=self.prob,
             evaluator=self.evaluator,
+            output_dir=self.output_dir,
         )
 
         population, n_start = self._initialize_population(interface_ec)

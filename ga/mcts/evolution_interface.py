@@ -26,10 +26,12 @@ class InterfaceEC:
         prompts: EOHProblemPrompts,
         evaluator: Evaluator,
         llm_client: BaseClient,
+        output_dir: str,
     ):
         self.m = m
         self.interface_eval = evaluator
         self.evol = Evolution(llm_client, prompts)
+        self.output_dir = output_dir
 
     def check_duplicate_obj(self, population: list[MCTSIndividual], obj: float) -> bool:
         for ind in population:
@@ -122,7 +124,7 @@ class InterfaceEC:
         while True:
             n_evals += 1
             _, offspring = self.get_offspring(pop, operator)
-            offspring = hydrate_individual(offspring, 0, 0)
+            offspring = hydrate_individual(offspring, 0, self.output_dir, 0)
             obj = self.interface_eval.batch_evaluate([offspring], 0)[0].obj
             if (
                 obj == "timeout"
@@ -144,7 +146,7 @@ class InterfaceEC:
         for i in range(3):
             eval_times += 1
             _, offspring = self.get_offspring(pop, operator, father=node)
-            offspring = hydrate_individual(offspring, 0, 0)
+            offspring = hydrate_individual(offspring, 0, self.output_dir, 0)
             population = self.interface_eval.batch_evaluate([offspring], 0)
             objs = [indiv.obj for indiv in population]
             if objs == "timeout":

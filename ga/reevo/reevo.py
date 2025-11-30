@@ -28,6 +28,7 @@ class ReEvo:
         self,
         prompts: ProblemPrompts,
         root_dir: str,
+        output_dir: str,
         generator_llm: BaseClient,
         reflector_llm: Optional[BaseClient] = None,
         # Support setting different LLMs for each of the four operators:
@@ -41,6 +42,8 @@ class ReEvo:
         self.prompts = prompts
 
         self.root_dir = root_dir
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
         self.output_file = (
             f"{self.root_dir}/problems/{self.prompts.problem_name}/gpt.py"
         )
@@ -123,6 +126,7 @@ class ReEvo:
             if file_name is None
             else file_name + ".txt"
         )
+        file_name = f"{self.output_dir}/{file_name}"
         with open(file_name, "w", encoding="utf-8") as file:
             file.writelines(response + "\n")
 
@@ -244,11 +248,15 @@ class ReEvo:
         )
 
         # Write reflections to file
-        file_name = f"problem_iter{self.iteration}_short_term_reflections.txt"
+        file_name = (
+            f"{self.output_dir}/problem_iter{self.iteration}_short_term_reflections.txt"
+        )
         with open(file_name, "w") as file:
             file.writelines("\n".join(short_term_reflections) + "\n")
 
-        file_name = f"problem_iter{self.iteration}_long_term_reflection.txt"
+        file_name = (
+            f"{self.output_dir}/problem_iter{self.iteration}_long_term_reflection.txt"
+        )
         with open(file_name, "w") as file:
             file.writelines(self.long_term_reflection_str + "\n")
 

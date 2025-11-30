@@ -142,7 +142,7 @@ def adapt_prompt(prompts: ProblemPrompts) -> EOHProblemPrompts:
 
 
 def hydrate_individual(
-    individual: T, response_id, iteration: int = 0, file_name=None
+    individual: T, response_id, output_dir: str, iteration: int = 0, file_name=None
 ) -> T:
 
     # Write response to file
@@ -151,6 +151,7 @@ def hydrate_individual(
         if file_name is None
         else file_name + ".txt"
     )
+    file_name = f"{output_dir}/{file_name}"
     with open(file_name, "w", encoding="utf-8") as file:
         file.writelines(individual.code + "\n")
 

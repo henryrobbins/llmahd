@@ -1,3 +1,4 @@
+from datetime import datetime
 from litellm import completion
 import os
 import logging
@@ -277,3 +278,9 @@ def format_messages(pre_messages):
         {"role": "user", "content": pre_messages["user"]},
     ]
     return messages
+
+
+def get_output_dir(job_name: str, root_dir: str) -> str:
+    now = datetime.now()
+    formatted_time = now.strftime("%Y-%m-%d_%H-%M-%S")
+    return f"{root_dir}/outputs/{job_name}/{formatted_time}"

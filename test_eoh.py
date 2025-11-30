@@ -1,4 +1,3 @@
-import hydra
 import logging
 import os
 from pathlib import Path
@@ -6,7 +5,7 @@ from ga.eoh.config import Config
 from utils.evaluate import Evaluator
 from utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
 from utils.problem import ProblemPrompts, adapt_prompt
-from utils.utils import print_hyperlink
+from utils.utils import get_output_dir, print_hyperlink
 
 from ga.eoh.eoh import EOH, EoHConfig
 
@@ -14,8 +13,7 @@ ROOT_DIR = os.getcwd()
 logging.basicConfig(level=logging.INFO)
 
 
-@hydra.main(version_base=None, config_path="hydra", config_name="config")
-def main(cfg) -> None:
+def main() -> None:
     problem_name = "tsp_aco"
 
     workspace_dir = Path.cwd()
@@ -32,6 +30,7 @@ def main(cfg) -> None:
 
     # ========================================================================
     root_dir = ROOT_DIR
+    ouput_dir = get_output_dir("test_eoh", root_dir)
 
     problem_config = ProblemPrompts.load_problem_prompts(
         f"{root_dir}/prompts/{problem_name}"
@@ -63,7 +62,7 @@ def main(cfg) -> None:
     # ========================================================================
 
     # Main algorithm
-    llh = EOH(paras, prompts, evaluator, client)
+    llh = EOH(paras, prompts, evaluator, client, output_dir=ouput_dir)
 
     best_code_overall, best_code_path_overall = llh.run()
     logging.info(f"Best Code Overall: {best_code_overall}")

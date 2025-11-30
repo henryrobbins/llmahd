@@ -1,19 +1,18 @@
-import hydra
 import logging
 import os
 from pathlib import Path
 from utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
 from utils.problem import ProblemPrompts
-from utils.utils import print_hyperlink
+from utils.utils import get_output_dir, print_hyperlink
 
 from ga.reevo.reevo import ReEvo as LHH
 
 ROOT_DIR = os.getcwd()
+output_dir = get_output_dir("test_reevo", ROOT_DIR)
 logging.basicConfig(level=logging.INFO)
 
 
-@hydra.main(version_base=None, config_path="hydra", config_name="config")
-def main(cfg) -> None:
+def main() -> None:
     problem_name = "tsp_aco"
 
     workspace_dir = Path.cwd()
@@ -33,7 +32,7 @@ def main(cfg) -> None:
         path=f"{prompt_dir}/{problem_name}",
     )
 
-    lhh = LHH(prompts, ROOT_DIR, generator_llm=client)
+    lhh = LHH(prompts, ROOT_DIR, output_dir=output_dir, generator_llm=client)
 
     best_code_overall, best_code_path_overall = lhh.evolve()
     logging.info(f"Best Code Overall: {best_code_overall}")

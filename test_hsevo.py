@@ -1,16 +1,16 @@
-import hydra
 import logging
 import os
 from pathlib import Path
 
 from ga.hsevo.hsevo import HSEvo as LHH
+from utils.utils import get_output_dir
 
 ROOT_DIR = os.getcwd()
+output_dir = get_output_dir("test_hsevo", ROOT_DIR)
 logging.basicConfig(level=logging.INFO)
 
 
-@hydra.main(version_base=None, config_path="hydra", config_name="config")
-def main(cfg) -> None:
+def main() -> None:
     problem_name = "tsp_aco"
 
     workspace_dir = Path.cwd()
@@ -24,6 +24,7 @@ def main(cfg) -> None:
         model="openai/gpt-4o-mini-2024-07-18",
         temperature=1.0,
         root_dir=ROOT_DIR,
+        output_dir=output_dir,
     )
     best_code_overall, best_code_path_overall = lhh.evolve()
     logging.info(f"Best Code Overall: {best_code_overall}")

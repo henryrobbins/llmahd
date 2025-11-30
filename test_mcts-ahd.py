@@ -1,4 +1,3 @@
-import hydra
 import logging
 import os
 from pathlib import Path
@@ -8,13 +7,14 @@ from ga.mcts.mcts_ahd import MCTS_AHD, AHDConfig
 from utils.evaluate import Evaluator
 from utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
 from utils.problem import ProblemPrompts, adapt_prompt
+from utils.utils import get_output_dir
 
 ROOT_DIR = os.getcwd()
+output_dir = get_output_dir("test_mcts-ahd", ROOT_DIR)
 logging.basicConfig(level=logging.INFO)
 
 
-@hydra.main(version_base=None, config_path="hydra", config_name="config")
-def main(cfg) -> None:
+def main() -> None:
     problem_name = "tsp_constructive"
 
     workspace_dir = Path.cwd()
@@ -64,7 +64,7 @@ def main(cfg) -> None:
     # ========================================================================
 
     # Main algorithm
-    lhh = MCTS_AHD(paras, prompts, evaluator, llm_client)
+    lhh = MCTS_AHD(paras, prompts, evaluator, llm_client, output_dir)
     best_code_overall, best_code_path_overall = lhh.run()
     logging.info(f"Best Code Overall: {best_code_overall}")
     logging.info(f"Best Code Path Overall: {best_code_path_overall}")
