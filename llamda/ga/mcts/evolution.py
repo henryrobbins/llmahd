@@ -1,9 +1,17 @@
 from enum import StrEnum
+from dataclasses import dataclass
 from importlib.resources import files
 
+from llamda.utils.individual import Individual
 from llamda.utils.problem import EOHProblemPrompts
 from llamda.utils.llm_client.base import BaseClient
 from llamda.utils.utils import file_to_string, parse_response
+
+
+@dataclass
+class MCTSIndividual(Individual):
+    algorithm: str | None = None
+    thought: str | None = None
 
 
 class MCTSOperator(StrEnum):
@@ -19,7 +27,7 @@ class Evolution:
 
     def __init__(self, llm_client: BaseClient, prompts: EOHProblemPrompts):
 
-        self.prompts_dir = files('llamda.prompts.ga.mcts')
+        self.prompts_dir = files("llamda.prompts.ga.mcts")
         self.prompts = prompts
         if len(self.prompts.func_inputs) > 1:
             self.joined_inputs = ", ".join(
@@ -71,7 +79,7 @@ class Evolution:
             other_inf=self.prompts.other_inf,
         )
 
-    def get_prompt_e1(self, indivs: list[dict]) -> str:
+    def get_prompt_e1(self, indivs: list[MCTSIndividual]) -> str:
         prompt_indiv = ""
         for i in range(len(indivs)):
             # print(indivs[i]['algorithm'] + f"Objective value: {indivs[i]['objective']}")
@@ -81,11 +89,11 @@ class Evolution:
                 + str(i + 1)
                 + " algorithm's description, its corresponding code and "
                 + " its objective value are: \n"
-                + indivs[i]["algorithm"]
+                + indivs[i].algorithm
                 + "\n"
-                + indivs[i]["code"]
+                + indivs[i].code
                 + "\n"
-                + f"Objective value: {indivs[i]['objective']}"
+                + f"Objective value: {indivs[i].obj}"
                 + "\n\n"
             )
 
@@ -103,7 +111,7 @@ class Evolution:
             prompt_indiv=prompt_indiv,
         )
 
-    def get_prompt_e2(self, indivs: list[dict]) -> str:
+    def get_prompt_e2(self, indivs: list[MCTSIndividual]) -> str:
         prompt_indiv = ""
         for i in range(len(indivs)):
             # print(indivs[i]['algorithm'] + f"Objective value: {indivs[i]['objective']}")
@@ -113,11 +121,11 @@ class Evolution:
                 + str(i + 1)
                 + " algorithm's description, its corresponding code "
                 + "and its objective value are: \n"
-                + indivs[i]["algorithm"]
+                + indivs[i].algorithm
                 + "\n"
-                + indivs[i]["code"]
+                + indivs[i].code
                 + "\n"
-                + f"Objective value: {indivs[i]['objective']}"
+                + f"Objective value: {indivs[i].obj}"
                 + "\n\n"
             )
 
@@ -135,7 +143,7 @@ class Evolution:
             prompt_indiv=prompt_indiv,
         )
 
-    def get_prompt_m1(self, indiv1: dict) -> str:
+    def get_prompt_m1(self, indiv1: MCTSIndividual) -> str:
         m1 = file_to_string(self.prompts_dir / "m1.txt")
         return m1.format(
             prompt_task=self.prompts.problem_desc,
@@ -146,11 +154,11 @@ class Evolution:
             joined_outputs=self.joined_outputs,
             inout_inf=self.prompts.inout_inf,
             other_inf=self.prompts.other_inf,
-            indiv_algorithm=indiv1["algorithm"],
-            indiv_code=indiv1["code"],
+            indiv_algorithm=indiv1.algorithm,
+            indiv_code=indiv1.code,
         )
 
-    def get_prompt_m2(self, indiv1: dict) -> str:
+    def get_prompt_m2(self, indiv1: MCTSIndividual) -> str:
         m2 = file_to_string(self.prompts_dir / "m2.txt")
         return m2.format(
             prompt_task=self.prompts.problem_desc,
@@ -161,11 +169,11 @@ class Evolution:
             joined_outputs=self.joined_outputs,
             inout_inf=self.prompts.inout_inf,
             other_inf=self.prompts.other_inf,
-            indiv_algorithm=indiv1["algorithm"],
-            indiv_code=indiv1["code"],
+            indiv_algorithm=indiv1.algorithm,
+            indiv_code=indiv1.code,
         )
 
-    def get_prompt_s1(self, indivs: list[dict]) -> str:
+    def get_prompt_s1(self, indivs: list[MCTSIndividual]) -> str:
         prompt_indiv = ""
         for i in range(len(indivs)):
             prompt_indiv = (
@@ -174,11 +182,11 @@ class Evolution:
                 + str(i + 1)
                 + " algorithm's description, its corresponding code "
                 + "and its objective value are: \n"
-                + indivs[i]["algorithm"]
+                + indivs[i].algorithm
                 + "\n"
-                + indivs[i]["code"]
+                + indivs[i].code
                 + "\n"
-                + f"Objective value: {indivs[i]['objective']}"
+                + f"Objective value: {indivs[i].obj}"
                 + "\n\n"
             )
 
@@ -243,23 +251,23 @@ class Evolution:
         prompt_content = self.get_prompt_i1()
         return self._get_alg(prompt_content)
 
-    def e1(self, parents: list[dict]) -> tuple[str, str]:
+    def e1(self, parents: list[MCTSIndividual]) -> tuple[str, str]:
         prompt_content = self.get_prompt_e1(parents)
         return self._get_alg(prompt_content)
 
-    def e2(self, parents: list[dict]) -> tuple[str, str]:
+    def e2(self, parents: list[MCTSIndividual]) -> tuple[str, str]:
         prompt_content = self.get_prompt_e2(parents)
         return self._get_alg(prompt_content)
 
-    def m1(self, parents: dict) -> tuple[str, str]:
+    def m1(self, parents: MCTSIndividual) -> tuple[str, str]:
         prompt_content = self.get_prompt_m1(parents)
         return self._get_alg(prompt_content)
 
-    def m2(self, parents: dict) -> tuple[str, str]:
+    def m2(self, parents: MCTSIndividual) -> tuple[str, str]:
         prompt_content = self.get_prompt_m2(parents)
         return self._get_alg(prompt_content)
 
-    def s1(self, parents: list[dict]) -> tuple[str, str]:
+    def s1(self, parents: list[MCTSIndividual]) -> tuple[str, str]:
         prompt_content = self.get_prompt_s1(parents)
         return self._get_alg(prompt_content)
 

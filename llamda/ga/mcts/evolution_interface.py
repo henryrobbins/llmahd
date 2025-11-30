@@ -1,21 +1,12 @@
 import copy
-from dataclasses import dataclass
 import random
-from typing import List
 
 import numpy as np
 
 from llamda.utils.evaluate import Evaluator
-from llamda.utils.individual import Individual
 from llamda.utils.problem import EOHProblemPrompts, hydrate_individual
-from llamda.ga.mcts.evolution import Evolution, MCTSOperator
+from llamda.ga.mcts.evolution import Evolution, MCTSIndividual, MCTSOperator
 from llamda.utils.llm_client.base import BaseClient
-
-
-@dataclass
-class MCTSIndividual(Individual):
-    algorithm: str | None = None
-    thought: str | None = None
 
 
 class InterfaceEC:
@@ -159,14 +150,14 @@ class InterfaceEC:
         return eval_times, None
 
 
-def select_parents(pop: List, m: int) -> List:
+def select_parents(pop: list[MCTSIndividual], m: int) -> list[MCTSIndividual]:
     ranks = [i for i in range(len(pop))]
     probs = [1 / (rank + 1 + len(pop)) for rank in ranks]
     parents = random.choices(pop, weights=probs, k=m)
     return parents
 
 
-def select_parents_e1(pop: List, m: int) -> List:
+def select_parents_e1(pop: list[MCTSIndividual], m: int) -> list[MCTSIndividual]:
     probs = [1 for i in range(len(pop))]
     parents = random.choices(pop, weights=probs, k=m)
     return parents

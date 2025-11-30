@@ -63,9 +63,11 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EOHProblemPrompts]):
         random.seed(2024)
 
     # add new individual to population
-    def add2pop(self, population: list[dict], offspring: dict) -> None:
+    def add2pop(
+        self, population: list[MCTSIndividual], offspring: MCTSIndividual
+    ) -> None:
         for ind in population:
-            if ind["algorithm"] == offspring["algorithm"]:
+            if ind.algorithm == offspring.algorithm:
                 # TODO: no actual retry logic implemented
                 print("duplicated result, retrying ... ")
         population.append(offspring)
