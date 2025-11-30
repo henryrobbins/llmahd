@@ -11,7 +11,7 @@ class Evolution:
 
         self.prompts = prompts
 
-        self.hsevo_prompts_dir = files('llamda.prompts.ga.hsevo')
+        self.hsevo_prompts_dir = files("llamda.prompts.ga.hsevo")
 
         # Common prompts
         self.system_generator_prompt = file_to_string(
@@ -108,7 +108,7 @@ class Evolution:
         )
 
         user_comprehensive_reflection_prompt = file_to_string(
-             self.hsevo_prompts_dir / "user_comprehensive_reflection.txt"
+            self.hsevo_prompts_dir / "user_comprehensive_reflection.txt"
         )
 
         user = user_comprehensive_reflection_prompt.format(
@@ -173,7 +173,7 @@ class Evolution:
         return pre_messages
 
     def mutate(
-        self, scientist: str, str_comprehensive_memory: str, elitist: dict
+        self, scientist: str, str_comprehensive_memory: str, elitist: str
     ) -> dict:
         """Elitist-based mutation. We only mutate the best individual to generate n_pop new individuals."""
         system = self.system_generator_prompt.format(seed=scientist)
@@ -190,7 +190,7 @@ class Evolution:
             user_generator=user_generator_prompt_full,
             reflection=str_comprehensive_memory,
             func_signature1=func_signature1,
-            elitist_code=filter_code(elitist["code"]),
+            elitist_code=filter_code(elitist),
             func_name=self.prompts.func_name,
         )
 

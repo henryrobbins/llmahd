@@ -248,10 +248,12 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
         trial = 0
         while len(selected_population) < 2 * self.config.pop_size:
             trial += 1
-            parents = np.random.choice(population, size=2, replace=False)
+            parents: list[HSEvoIndividual] = np.random.choice(
+                np.array(population), size=2, replace=False
+            ).tolist()
             # If two parents have the same objective value, consider them as identical;
             # otherwise, add them to the selected population
-            if parents[0]["obj"] != parents[1]["obj"]:
+            if parents[0].obj != parents[1].obj:
                 selected_population.extend(parents)
             if trial > 1000:
                 return None
@@ -261,7 +263,9 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
         lst_str_method = []
         seen_elements = set()
 
-        sorted_population = sorted(population, key=lambda x: x.obj, reverse=False)
+        sorted_population: list[HSEvoIndividual] = sorted(
+            population, key=lambda x: x.obj, reverse=False
+        )
         for idx, individual in enumerate(sorted_population):
             suffix = (
                 "th"
@@ -271,7 +275,7 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
             str_idx_method = f"[Heuristics {idx + 1}{suffix}]"
             # str_idx_method = f"[Heuristics {individual['code_path']}]"
             # str_obj = f"* Objective score: {individual['obj']}"
-            str_code = individual["code"]
+            str_code = individual.code
             temp_str = str_idx_method + "\n" + str_code + "\n"
 
             if temp_str not in seen_elements:
@@ -388,7 +392,7 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
         pre_messages = self.evol.mutate(
             scientist=self.scientists[0],
             str_comprehensive_memory=self.str_comprehensive_memory,
-            elitist=self.elitist,
+            elitist=self.elitist.code,
         )
         messages = format_messages(pre_messages)
 
