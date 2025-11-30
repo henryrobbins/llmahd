@@ -72,6 +72,7 @@ class Evolution:
 
         e1 = file_to_string(self.prompts_dir / f"{EOHOperator.E1.value}.txt")
         return e1.format(
+            m=len(indivs),
             prompt_task=self.prompts.problem_desc,
             prompt_func_name=self.prompts.func_name,
             n_inputs=len(self.prompts.func_inputs),
@@ -100,6 +101,7 @@ class Evolution:
 
         e2 = file_to_string(self.prompts_dir / f"{EOHOperator.E2.value}.txt")
         return e2.format(
+            m=len(indivs),
             prompt_task=self.prompts.problem_desc,
             prompt_func_name=self.prompts.func_name,
             n_inputs=len(self.prompts.func_inputs),
@@ -123,8 +125,8 @@ class Evolution:
             prompt_func_outputs=self.joined_outputs,
             prompt_inout_inf=self.prompts.inout_inf,
             prompt_other_inf=self.prompts.other_inf,
-            indiv_algorithm=indiv1.algorithm,
-            indiv_code=indiv1.code,
+            algorithm=indiv1.algorithm,
+            code=indiv1.code,
         )
 
     def get_prompt_m2(self, indiv1: EOHIndividual) -> str:
@@ -138,8 +140,8 @@ class Evolution:
             prompt_func_outputs=self.joined_outputs,
             prompt_inout_inf=self.prompts.inout_inf,
             prompt_other_inf=self.prompts.other_inf,
-            indiv_algorithm=indiv1.algorithm,
-            indiv_code=indiv1.code,
+            algorithm=indiv1.algorithm,
+            code=indiv1.code,
         )
 
     def _get_alg(self, prompt_content: str) -> tuple[str, str]:
