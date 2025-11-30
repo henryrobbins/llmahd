@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 import json
 import random
@@ -7,28 +7,51 @@ import time
 import os
 
 from llamda.ga.eoh.eoh_evolution import EOHOperator
-from llamda.ga.eoh.config import Config
 from llamda.utils.evaluate import Evaluator
 from llamda.ga.eoh.eoh_interface_EC import EOHIndividual, InterfaceEC
 from llamda.utils.llm_client.base import BaseClient
 from llamda.utils.problem import EOHProblemPrompts
 
+# See original EOH adapter implementation in the reevo repository:
+# https://github.com/ai4co/reevo/blob/main/baselines/eoh/eoh_adapter.py
+#
+# For the default configuration: https://github.com/ai4co/reevo/blob/main/cfg/config.yaml
+#
+# max_fe: int = 100
+# pop_size: int = 10
+# init_pop_size: int = 30
+#
+# total evals = 2 * pop_size + n_pop * 4 * pop_size
+# 100 = 2 * 10 + n_pop * 4 * 10
+# n_pop = (100 - 20) / 40 + 1 = 3
 
 @dataclass
 class EoHConfig:
-    max_fe: int = 100  # maximum number of function evaluations
-    pop_size: int = 10  # population size for GA
-    init_pop_size: int = 30  # initial population size for GA
-    mutation_rate: float = 0.5  # mutation rate for GA
-    timeout: int = 20  # timeout for evaluation of a single heuristic
-    diversify_init_pop: bool = True  # whether to diversify the initial population
 
+    # EC settings
+    ec_pop_size: int = 10  # number of algorithms in each population
+    ec_n_pop: int = 3  # number of populations
+    ec_operators: list[str] = field(
+        default_factory=lambda: ["e1", "e2", "m1", "m2"]
+    )  # evolution operators
+    ec_m: int = 2  # number of parents for 'e1' and 'e2' operators
+    ec_operator_weights: list[int] = field(
+        default_factory=lambda: [1, 1, 1, 1]
+    )  # weights for operators
+
+    # Exp settings
+    exp_output_path: str = "./"  # default folder for ael outputs
+    exp_use_seed: bool = False
+    exp_seed_path: str = "./seeds/seeds.json"
+    exp_use_continue: bool = False
+    exp_continue_id: int = 0
+    exp_continue_path: str = "./results/pops/population_generation_0.json"
 
 class EOH:
 
     def __init__(
         self,
-        config: Config,
+        config: EoHConfig,
         problem: EOHProblemPrompts,
         evaluator: Evaluator,
         llm_client: BaseClient,

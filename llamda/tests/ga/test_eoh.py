@@ -2,7 +2,6 @@ import logging
 import os
 from pathlib import Path
 
-from llamda.ga.eoh.config import Config
 from llamda.utils.evaluate import Evaluator
 from llamda.utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
 from llamda.utils.problem import ProblemPrompts, adapt_prompt
@@ -51,18 +50,10 @@ def test_eoh() -> None:
 
     eoh_config = EoHConfig()
 
-    paras = Config(
-        ec_pop_size=eoh_config.pop_size,
-        ec_n_pop=(eoh_config.max_fe - 2 * eoh_config.pop_size)
-        // (4 * eoh_config.pop_size)
-        + 1,  # total evals = 2 * pop_size + n_pop * 4 * pop_size; for pop_size = 10, n_pop = 5, total evals = 2 * 10 + 4 * 5 * 10 = 220
-        exp_output_path="./",
-    )
-
     # ========================================================================
 
     # Main algorithm
-    llh = EOH(paras, prompts, evaluator, client, output_dir=ouput_dir)
+    llh = EOH(eoh_config, prompts, evaluator, client, output_dir=ouput_dir)
 
     best_code_overall, best_code_path_overall = llh.run()
     logging.info(f"Best Code Overall: {best_code_overall}")

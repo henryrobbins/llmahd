@@ -2,7 +2,6 @@ import logging
 import os
 from pathlib import Path
 
-from llamda.ga.mcts.config import Config
 from llamda.ga.mcts.mcts_ahd import MCTS_AHD, AHDConfig
 from llamda.utils.evaluate import Evaluator
 from llamda.utils.llm_client.openai import OpenAIClient, OpenAIClientConfig
@@ -52,19 +51,13 @@ def test_mcts() -> None:
 
     ahd_config = AHDConfig()
 
-    paras = Config(
-        init_size=ahd_config.init_pop_size,
-        pop_size=ahd_config.pop_size,
-        ec_fe_max=ahd_config.max_fe,
-        exp_output_path=f"{workspace_dir}/",
-    )
 
     llm_client = client
 
     # ========================================================================
 
     # Main algorithm
-    lhh = MCTS_AHD(paras, prompts, evaluator, llm_client, output_dir)
+    lhh = MCTS_AHD(ahd_config, prompts, evaluator, llm_client, output_dir)
     best_code_overall, best_code_path_overall = lhh.run()
     logging.info(f"Best Code Overall: {best_code_overall}")
     logging.info(f"Best Code Path Overall: {best_code_path_overall}")
