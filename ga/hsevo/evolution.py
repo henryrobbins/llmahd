@@ -130,8 +130,8 @@ class Evolution:
 
     def crossover(
         self,
-        parent_1: dict,
-        parent_2: dict,
+        parent_1_code: str,
+        parent_2_code: str,
         scientist: str,
         str_flash_memory: dict,
         str_comprehensive_memory: str,
@@ -154,8 +154,8 @@ class Evolution:
             user_generator=user_generator_prompt_full,
             func_signature_m1=func_signature_m1,
             func_signature_m2=func_signature_m2,
-            code_method1=filter_code(parent_1["code"]),
-            code_method2=filter_code(parent_2["code"]),
+            code_method1=filter_code(parent_1_code),
+            code_method2=filter_code(parent_2_code),
             analyze=str_flash_memory["analyze"],
             exp=str_comprehensive_memory,
             func_name=self.prompts.func_name,

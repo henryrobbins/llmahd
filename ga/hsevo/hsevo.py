@@ -10,6 +10,7 @@ from utils.individual import Individual
 from utils.problem import ProblemPrompts
 from utils.utils import (
     extract_code_from_generator,
+    extract_to_hs,
     multi_chat_completion,
     format_messages,
 )
@@ -39,7 +40,9 @@ class HSEvoIndividual(Individual):
 
 
 class HSEvo:
-    def __init__(self, problem_name, model, temperature, root_dir) -> None:
+    def __init__(
+        self, problem_name: str, model: str, temperature: float, root_dir: str
+    ) -> None:
 
         self.problem = problem_name
         self.model = model
@@ -92,12 +95,17 @@ class HSEvo:
 
         self.init_population()
 
-    def cal_usage_LLM(self, lst_prompt, lst_completion, encoding_name="cl100k_base"):
+    def cal_usage_LLM(
+        self,
+        lst_prompt: list[list[dict]],
+        lst_completion: list[str],
+        encoding_name: str = "cl100k_base",
+    ) -> None:
         """Returns the number of tokens in a text string."""
         encoding = tiktoken.get_encoding(encoding_name)
         for i in range(len(lst_prompt)):
             for message in lst_prompt[i]:
-                for key, value in message.items():
+                for _, value in message.items():
                     self.prompt_tokens += len(encoding.encode(value))
 
             self.completion_tokens += len(encoding.encode(lst_completion[i]))
@@ -118,7 +126,8 @@ class HSEvo:
         # If seed function is invalid, stop
         if not self.seed_ind.exec_success:
             raise RuntimeError(
-                f"Seed function is invalid. Please check the stdout file in {os.getcwd()}."
+                "Seed function is invalid. "
+                f"Please check the stdout file in {os.getcwd()}."
             )
 
         self.update_iter()
@@ -157,7 +166,7 @@ class HSEvo:
         self.update_iter()
 
     def response_to_individual(
-        self, response: str, response_id: int, file_name: str = None
+        self, response: str, response_id: int, file_name: str | None = None
     ) -> HSEvoIndividual:
         """
         Convert response to individual
@@ -241,7 +250,7 @@ class HSEvo:
                 return None
         return selected_population
 
-    def flash_reflection(self, population: list[dict]) -> None:
+    def flash_reflection(self, population: list[HSEvoIndividual]) -> None:
         lst_str_method = []
         seen_elements = set()
 
@@ -322,7 +331,7 @@ class HSEvo:
         with open(file_name, "w") as file:
             file.writelines(self.str_comprehensive_memory)
 
-    def crossover(self, population: list[HSEvoIndividual]) -> list[str]:
+    def crossover(self, population: list[HSEvoIndividual]) -> list[HSEvoIndividual]:
         messages_lst = []
         num_choice = 0
         for i in range(0, len(population), 2):
@@ -335,8 +344,8 @@ class HSEvo:
                 parent_2 = population[i]
 
             pre_messages = self.evol.crossover(
-                parent_1,
-                parent_2,
+                parent_1.code,
+                parent_2.code,
                 scientist=self.scientists[0],
                 str_flash_memory=self.str_flash_memory,
                 str_comprehensive_memory=self.str_comprehensive_memory,
@@ -360,11 +369,9 @@ class HSEvo:
             self.response_to_individual(response, response_id)
             for response_id, response in enumerate(response_lst)
         ]
-        return response_lst
+        return population
 
-        return response_lst
-
-    def mutate(self) -> list[str]:
+    def mutate(self) -> list[HSEvoIndividual]:
         """Elitist-based mutation. We only mutate the best individual to generate n_pop new individuals."""
 
         pre_messages = self.evol.mutate(
@@ -393,7 +400,7 @@ class HSEvo:
 
         return population
 
-    def sel_individual_hs(self):
+    def sel_individual_hs(self) -> str:
         candidate_hs = [
             individual for individual in self.population if individual.tryHS is False
         ]
@@ -402,7 +409,7 @@ class HSEvo:
         self.population[best_candidate_id].tryHS = True
         return self.population[best_candidate_id].code
 
-    def initialize_harmony_memory(self, bounds):
+    def initialize_harmony_memory(self, bounds: list[list[int]]) -> np.ndarray:
         problem_size = len(bounds)
         harmony_memory = np.zeros((self.config.hm_size, problem_size))
         for i in range(problem_size):
@@ -412,7 +419,9 @@ class HSEvo:
             )
         return harmony_memory
 
-    def responses_to_population(self, responses, try_hs_idx=None) -> list[dict]:
+    def responses_to_population(
+        self, responses: list[str], try_hs_idx: int | None = None
+    ) -> list[HSEvoIndividual]:
         """
         Convert responses to population. Applied to the initial population.
         """
@@ -428,8 +437,12 @@ class HSEvo:
         return population
 
     def create_population_hs(
-        self, str_code, parameter_ranges, harmony_memory, try_hs_idx=None
-    ):
+        self,
+        str_code: str,
+        parameter_ranges: list[int],
+        harmony_memory: np.ndarray,
+        try_hs_idx: int | None = None,
+    ) -> list[HSEvoIndividual] | None:
         str_create_pop = []
         for i in range(len(harmony_memory)):
             tmp_str = str_code
@@ -444,12 +457,14 @@ class HSEvo:
         population_hs = self.responses_to_population(str_create_pop, try_hs_idx)
         return self.evaluator.batch_evaluate(population_hs)
 
-    def find_best_obj(self, population_hs):
-        objs = [individual["obj"] for individual in population_hs]
+    def find_best_obj(self, population_hs: list[HSEvoIndividual]) -> int:
+        objs = [individual.obj for individual in population_hs]
         best_solution_id = np.argmin(np.array(objs))
-        return best_solution_id
+        return int(best_solution_id)
 
-    def create_new_harmony(self, harmony_memory, bounds):
+    def create_new_harmony(
+        self, harmony_memory: np.ndarray, bounds: list[list[int]]
+    ) -> np.ndarray:
         new_harmony = np.zeros((harmony_memory.shape[1],))
         for i in range(harmony_memory.shape[1]):
             if np.random.rand() < self.config.hmcr:
@@ -470,12 +485,12 @@ class HSEvo:
     def update_harmony_memory(
         self,
         population_hs: list[HSEvoIndividual],
-        harmony_memory,
-        new_harmony,
-        func_block,
-        parameter_ranges,
-        try_hs_idx,
-    ):
+        harmony_memory: np.ndarray,
+        new_harmony: np.ndarray,
+        func_block: str,
+        parameter_ranges: list[int],
+        try_hs_idx: int,
+    ) -> tuple[list[HSEvoIndividual], np.ndarray]:
         objs = [individual.obj for individual in population_hs]
         worst_index = np.argmax(np.array(objs))
 
@@ -488,7 +503,7 @@ class HSEvo:
             harmony_memory[worst_index] = new_harmony
         return population_hs, harmony_memory
 
-    def harmony_search(self):
+    def harmony_search(self) -> HSEvoIndividual | None:
         pre_messages = self.evol.harmony_search(
             sel_individual_hs=self.sel_individual_hs()
         )
@@ -542,7 +557,9 @@ class HSEvo:
         population_hs[best_obj_id].tryHS = True
         return population_hs[best_obj_id]
 
-    def save_log_population(self, population: list[HSEvoIndividual], logHS=False):
+    def save_log_population(
+        self, population: list[HSEvoIndividual], logHS: bool = False
+    ) -> None:
         objs = [individual.obj for individual in population]
         if logHS is False:
             file_name = f"objs_log_iter{self.iteration}.txt"
@@ -553,12 +570,13 @@ class HSEvo:
             with open(file_name, "w") as file:
                 file.writelines("\n".join(map(str, objs + [self.local_sel_hs])) + "\n")
 
-    def evolve(self):
+    def evolve(self) -> tuple[str, str]:
         while self.function_evals < self.config.max_fe:
             # If all individuals are invalid, stop
             if all([not individual.exec_success for individual in self.population]):
                 raise RuntimeError(
-                    f"All individuals are invalid. Please check the stdout files in {os.getcwd()}."
+                    "All individuals are invalid. "
+                    f"Please check the stdout files in {os.getcwd()}."
                 )
             # Select
             population_to_select = (
