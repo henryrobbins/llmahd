@@ -32,13 +32,10 @@ def test_mcts(problem_name: str) -> None:
     )
     eoh_problem_prompts = adapt_prompt(problem_prompts)
 
-    ahd_config = AHDConfig()
-    evaluator = Evaluator(eoh_problem_prompts)
-
     lhh = LHH(
-        config=ahd_config,
+        config=AHDConfig(init_size=5, ec_fe_max=15),
         problem=eoh_problem_prompts,
-        evaluator=evaluator,
+        evaluator=Evaluator(eoh_problem_prompts),
         output_dir=output_dir,
         llm_client=client,
     )

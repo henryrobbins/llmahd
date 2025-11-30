@@ -31,9 +31,9 @@ def test_eoh(problem_name: str) -> None:
     eoh_problem_prompts = adapt_prompt(problem_prompts)
 
     llh = EOH(
-        config=EoHConfig(),
+        config=EoHConfig(ec_pop_size=3),
         problem=eoh_problem_prompts,
-        evaluator=Evaluator(eoh_problem_prompts),
+        evaluator=Evaluator(eoh_problem_prompts, timeout=5),
         llm_client=client,
         output_dir=ouput_dir,
     )
