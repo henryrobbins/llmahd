@@ -61,7 +61,9 @@ class EOHProblemPrompts(BaseProblemPrompts):
     inout_inf: str
     other_inf: str
 
-
+# I believe these were the exact prompts used in the original EOH paper
+# See the reevo EoH baseline implementation for reference:
+# https://github.com/ai4co/reevo/blob/main/baselines/eoh/original/prompts/bpp_online.py
 BPP_ONLINE_PROMPTS = EOHProblemPrompts(
     problem_name="bpp_online",
     problem_type="online",
@@ -82,6 +84,9 @@ are both Numpy arrays. The novel function should be sufficiently complex in orde
 to achieve better performance. It is important to ensure self-consistency.",
 )
 
+# I believe these were the exact prompts used in the original EOH paper
+# See the reevo EoH baseline implementation for reference:
+# https://github.com/ai4co/reevo/blob/main/baselines/eoh/original/prompts/tsp_greedy.py
 TSP_CONSTRUCTIVE_PROMPTS = EOHProblemPrompts(
     problem_name="tsp_constructive",
     problem_type="constructive",

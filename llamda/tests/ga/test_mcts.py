@@ -36,16 +36,8 @@ def test_mcts() -> None:
         f"{root_dir}/llamda/prompts/{problem_name}"
     )
 
-    if problem_config.problem_type == "constructive":
-        from llamda.utils.problem import TSP_CONSTRUCTIVE_PROMPTS
 
-        prompts = TSP_CONSTRUCTIVE_PROMPTS
-    elif problem_config.problem_type == "online":
-        from llamda.utils.problem import BPP_ONLINE_PROMPTS
-
-        prompts = BPP_ONLINE_PROMPTS
-    else:
-        prompts = adapt_prompt(problem_config)
+    prompts = adapt_prompt(problem_config)
 
     evaluator = Evaluator(prompts, root_dir)
 
