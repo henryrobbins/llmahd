@@ -205,8 +205,10 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
         trial = 0
         while len(selected_population) < 2 * self.config.pop_size:
             trial += 1
-            parents = np.random.choice(population, size=2, replace=False, p=probs)
-            if parents[0]["obj"] != parents[1]["obj"]:
+            parents: list[Individual] = np.random.choice(
+                np.array(population), size=2, replace=False, p=probs
+            ).tolist()
+            if parents[0].obj != parents[1].obj:
                 selected_population.extend(parents)
             if trial > 1000:
                 return None
@@ -216,7 +218,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
         """
         Random selection, select individuals with equal probability.
         """
-        selected_population = []
+        selected_population: list[Individual] = []
         # Eliminate invalid individuals
         if self.problem.problem_type == "black_box":
             population = [
@@ -233,9 +235,11 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
         trial = 0
         while len(selected_population) < 2 * self.config.pop_size:
             trial += 1
-            parents = np.random.choice(population, size=2, replace=False)
+            parents: list[Individual] = np.random.choice(
+                np.array(population), size=2, replace=False
+            ).tolist()
             # If two parents have the same objective value, consider them as identical; otherwise, add them to the selected population
-            if parents[0]["obj"] != parents[1]["obj"]:
+            if parents[0].obj != parents[1].obj:
                 selected_population.extend(parents)
             if trial > 1000:
                 return None

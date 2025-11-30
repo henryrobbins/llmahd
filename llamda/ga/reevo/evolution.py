@@ -249,7 +249,7 @@ class Evolution:
         responses = self.llm_clients.crossover_llm.multi_chat_completion(messages_lst)
         return responses
 
-    def mutate(self, long_term_reflection_str: str, elitist: dict) -> list[str]:
+    def mutate(self, long_term_reflection_str: str, elitist: Individual) -> list[str]:
         """
         Elitist-based mutation. We mutate the best to generate n_pop new individuals.
         """
@@ -262,7 +262,7 @@ class Evolution:
             user_generator=self.user_generator_prompt,
             reflection=long_term_reflection_str + self.prompts.external_knowledge,
             func_signature1=func_signature1,
-            elitist_code=filter_code(elitist["code"]),
+            elitist_code=filter_code(elitist.code),
             func_name=self.prompts.func_name,
         )
         messages = [
