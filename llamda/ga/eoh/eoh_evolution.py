@@ -1,9 +1,16 @@
 from enum import StrEnum
+from dataclasses import dataclass
 from importlib.resources import files
 
+from llamda.utils.individual import Individual
 from llamda.utils.problem import EOHProblemPrompts
 from llamda.utils.llm_client.base import BaseClient
 from llamda.utils.utils import file_to_string, parse_response
+
+
+@dataclass
+class EOHIndividual(Individual):
+    algorithm: str | None = None
 
 
 class EOHOperator(StrEnum):
@@ -18,7 +25,7 @@ class Evolution:
 
     def __init__(self, llm_client: BaseClient, prompts: EOHProblemPrompts) -> None:
 
-        self.prompts_dir = files('llamda.prompts.ga.eoh')
+        self.prompts_dir = files("llamda.prompts.ga.eoh")
         self.prompts = prompts
         if len(self.prompts.func_inputs) > 1:
             self.joined_inputs = ", ".join(
@@ -49,7 +56,7 @@ class Evolution:
             prompt_other_inf=self.prompts.other_inf,
         )
 
-    def get_prompt_e1(self, indivs: list[dict]) -> str:
+    def get_prompt_e1(self, indivs: list[EOHIndividual]) -> str:
         prompt_indiv = ""
         for i in range(len(indivs)):
             prompt_indiv = (
@@ -57,9 +64,9 @@ class Evolution:
                 + "No."
                 + str(i + 1)
                 + " algorithm and the corresponding code are: \n"
-                + indivs[i]["algorithm"]
+                + indivs[i].algorithm
                 + "\n"
-                + indivs[i]["code"]
+                + indivs[i].code
                 + "\n"
             )
 
@@ -77,7 +84,7 @@ class Evolution:
             prompt_indiv=prompt_indiv,
         )
 
-    def get_prompt_e2(self, indivs: list[dict]) -> str:
+    def get_prompt_e2(self, indivs: list[EOHIndividual]) -> str:
         prompt_indiv = ""
         for i in range(len(indivs)):
             prompt_indiv = (
@@ -85,9 +92,9 @@ class Evolution:
                 + "No."
                 + str(i + 1)
                 + " algorithm and the corresponding code are: \n"
-                + indivs[i]["algorithm"]
+                + indivs[i].algorithm
                 + "\n"
-                + indivs[i]["code"]
+                + indivs[i].code
                 + "\n"
             )
 
@@ -105,7 +112,7 @@ class Evolution:
             prompt_indiv=prompt_indiv,
         )
 
-    def get_prompt_m1(self, indiv1: dict) -> str:
+    def get_prompt_m1(self, indiv1: EOHIndividual) -> str:
         m1 = file_to_string(self.prompts_dir / f"{EOHOperator.M1.value}.txt")
         return m1.format(
             prompt_task=self.prompts.problem_desc,
@@ -116,11 +123,11 @@ class Evolution:
             prompt_func_outputs=self.joined_outputs,
             prompt_inout_inf=self.prompts.inout_inf,
             prompt_other_inf=self.prompts.other_inf,
-            indiv_algorithm=indiv1["algorithm"],
-            indiv_code=indiv1["code"],
+            indiv_algorithm=indiv1.algorithm,
+            indiv_code=indiv1.code,
         )
 
-    def get_prompt_m2(self, indiv1: dict) -> str:
+    def get_prompt_m2(self, indiv1: EOHIndividual) -> str:
         m2 = file_to_string(self.prompts_dir / f"{EOHOperator.M2.value}.txt")
         return m2.format(
             prompt_task=self.prompts.problem_desc,
@@ -131,8 +138,8 @@ class Evolution:
             prompt_func_outputs=self.joined_outputs,
             prompt_inout_inf=self.prompts.inout_inf,
             prompt_other_inf=self.prompts.other_inf,
-            indiv_algorithm=indiv1["algorithm"],
-            indiv_code=indiv1["code"],
+            indiv_algorithm=indiv1.algorithm,
+            indiv_code=indiv1.code,
         )
 
     def _get_alg(self, prompt_content: str) -> tuple[str, str]:
@@ -164,19 +171,19 @@ class Evolution:
         prompt_content = self.get_prompt_i1()
         return self._get_alg(prompt_content)
 
-    def e1(self, parents: list[dict]) -> tuple[str, str]:
+    def e1(self, parents: list[EOHIndividual]) -> tuple[str, str]:
         prompt_content = self.get_prompt_e1(parents)
         return self._get_alg(prompt_content)
 
-    def e2(self, parents: list[dict]) -> tuple[str, str]:
+    def e2(self, parents: list[EOHIndividual]) -> tuple[str, str]:
         prompt_content = self.get_prompt_e2(parents)
         return self._get_alg(prompt_content)
 
-    def m1(self, parents: dict) -> tuple[str, str]:
+    def m1(self, parents: EOHIndividual) -> tuple[str, str]:
         prompt_content = self.get_prompt_m1(parents)
         return self._get_alg(prompt_content)
 
-    def m2(self, parents: dict) -> tuple[str, str]:
+    def m2(self, parents: EOHIndividual) -> tuple[str, str]:
         prompt_content = self.get_prompt_m2(parents)
         return self._get_alg(prompt_content)
 

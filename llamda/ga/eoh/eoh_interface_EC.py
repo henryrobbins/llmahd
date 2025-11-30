@@ -1,18 +1,12 @@
-from dataclasses import dataclass
+import logging
 import random
 
 import numpy as np
 
-from llamda.ga.eoh.eoh_evolution import EOHOperator, Evolution
+from llamda.ga.eoh.eoh_evolution import EOHIndividual, EOHOperator, Evolution
 from llamda.utils.evaluate import Evaluator
-from llamda.utils.individual import Individual
 from llamda.utils.problem import EOHProblemPrompts, hydrate_individual
 from llamda.utils.llm_client.base import BaseClient
-
-
-@dataclass
-class EOHIndividual(Individual):
-    algorithm: str | None = None
 
 
 class InterfaceEC:
