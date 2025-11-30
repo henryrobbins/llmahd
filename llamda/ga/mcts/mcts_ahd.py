@@ -112,7 +112,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EOHProblemPrompts]):
         else:
             self.eval_times, offsprings = self.interface_ec.evolve_algorithm(
                 eval_times=self.eval_times,
-                pop=e1_set,
+                pop=nodes_set,
                 node=cur_node.raw_info,
                 operator=MCTSOperator(option),
             )
