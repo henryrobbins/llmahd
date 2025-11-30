@@ -72,7 +72,6 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
 
         self.mutation_rate = self.config.mutation_rate
         self.iteration = 0
-        self.function_evals = 0
         self.elitist = None
         self.long_term_reflection_str = ""
         self.best_obj_overall = None
@@ -176,7 +175,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
             f"Best obj: {self.best_obj_overall}, Best Code Path: {print_hyperlink(best_path, self.best_code_path_overall)}"
         )
         logging.info(f"Iteration {self.iteration} finished...")
-        logging.info(f"Function Evals: {self.function_evals}")
+        logging.info(f"Function Evals: {self.evaluator.function_evals}")
         self.iteration += 1
 
     def rank_select(self, population: list[Individual]) -> list[Individual] | None:
@@ -267,7 +266,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
             file.writelines(self.long_term_reflection_str + "\n")
 
     def evolve(self) -> tuple[str, str]:
-        while self.function_evals < self.config.max_fe:
+        while self.evaluator.function_evals < self.config.max_fe:
             # If all individuals are invalid, stop
             if all([not individual.exec_success for individual in self.population]):
                 raise RuntimeError(
