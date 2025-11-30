@@ -1,3 +1,4 @@
+from importlib.resources import files
 import logging
 import os
 from pathlib import Path
@@ -18,7 +19,6 @@ def test_eoh() -> None:
     workspace_dir = Path.cwd()
     # Set logging level
     logging.info(f"Workspace: {print_hyperlink(workspace_dir)}")
-    logging.info(f"Project Root: {print_hyperlink(ROOT_DIR)}")
 
     config = OpenAIClientConfig(
         model="gpt-3.5-turbo",
@@ -31,12 +31,13 @@ def test_eoh() -> None:
     root_dir = ROOT_DIR
     ouput_dir = get_output_dir("test_eoh", root_dir)
 
+    problems_dir = files("llamda.prompts.problems")
     problem_config = ProblemPrompts.load_problem_prompts(
-        f"{root_dir}/llamda/prompts/{problem_name}"
+        str(problems_dir / problem_name)
     )
     prompts = adapt_prompt(problem_config)
 
-    evaluator = Evaluator(prompts, root_dir)
+    evaluator = Evaluator(prompts)
 
     eoh_config = EoHConfig()
 

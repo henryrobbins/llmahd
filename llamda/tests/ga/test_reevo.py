@@ -1,3 +1,4 @@
+from importlib.resources import files
 import logging
 import os
 from pathlib import Path
@@ -28,15 +29,21 @@ def test_reevo() -> None:
     )
     client = OpenAIClient(config)
 
-    prompt_dir = f"{ROOT_DIR}/llamda/prompts"
+    problems_dir = files("llamda.prompts.problems")
     prompts = ProblemPrompts.load_problem_prompts(
-        path=f"{prompt_dir}/{problem_name}",
+        path=str(problems_dir / problem_name),
     )
 
     reevo_config = ReEvoConfig()
-    evaluator =Evaluator(prompts, ROOT_DIR)
+    evaluator = Evaluator(prompts)
 
-    lhh = LHH(reevo_config, prompts, evaluator=evaluator, root_dir=ROOT_DIR, output_dir=output_dir, generator_llm=client)
+    lhh = LHH(
+        reevo_config,
+        prompts,
+        evaluator=evaluator,
+        output_dir=output_dir,
+        generator_llm=client,
+    )
 
     best_code_overall, best_code_path_overall = lhh.evolve()
     logging.info(f"Best Code Overall: {best_code_overall}")

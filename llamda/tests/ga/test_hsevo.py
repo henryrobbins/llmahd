@@ -1,3 +1,4 @@
+from importlib.resources import files
 import logging
 import os
 from pathlib import Path
@@ -28,14 +29,12 @@ def test_hsevo() -> None:
     )
     client = OpenAIClient(llm_config)
 
-    prompt_dir = f"{ROOT_DIR}/llamda/prompts"
-    prompts = ProblemPrompts.load_problem_prompts(
-        path=f"{prompt_dir}/{problem_name}",
-    )
+    prompt_dir = files("llamda.prompts.problems")
+    prompts = ProblemPrompts.load_problem_prompts(str(prompt_dir / problem_name))
 
     config = HSEvoConfig()
 
-    evaluator = Evaluator(prompts, ROOT_DIR)
+    evaluator = Evaluator(prompts)
 
     # Main algorithm
     lhh = LHH(
@@ -44,7 +43,6 @@ def test_hsevo() -> None:
         evaluator=evaluator,
         llm_client=client,
         temperature=1.0,
-        root_dir=ROOT_DIR,
         output_dir=output_dir,
     )
     best_code_overall, best_code_path_overall = lhh.evolve()

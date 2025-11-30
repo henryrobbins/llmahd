@@ -1,3 +1,4 @@
+from importlib.resources import files
 from typing import Optional
 import logging
 import numpy as np
@@ -29,7 +30,6 @@ class ReEvo:
         config: ReEvoConfig,
         prompts: ProblemPrompts,
         evaluator: Evaluator,
-        root_dir: str,
         output_dir: str,
         generator_llm: BaseClient,
         reflector_llm: Optional[BaseClient] = None,
@@ -43,18 +43,17 @@ class ReEvo:
         self.config = config
         self.prompts = prompts
 
-        self.root_dir = root_dir
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
+
         self.output_file = (
-            f"{self.root_dir}/llamda/problems/{self.prompts.problem_name}/gpt.py"
+            files('llamda.problems') / f"{self.prompts.problem_name}/gpt.py"
         )
 
         self.evol = Evolution(
             init_pop_size=self.config.init_pop_size,
             pop_size=self.config.pop_size,
             mutation_rate=self.config.mutation_rate,
-            root_dir=self.root_dir,
             llm_clients=ReEvoLLMClients(
                 generator_llm=generator_llm,
                 reflector_llm=reflector_llm,
@@ -65,8 +64,6 @@ class ReEvo:
             ),
             prompts=self.prompts,
         )
-
-        self.root_dir = root_dir
 
         self.evaluator = evaluator
 

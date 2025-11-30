@@ -24,4 +24,5 @@ setuptools.setup(
             "sphinx-rtd-theme>=3.0",
         ]
     },
+    package_data={"llamda": ["prompts/*", "problems/*"]},
 )

@@ -1,3 +1,4 @@
+from importlib.resources import files
 import logging
 
 from llamda.utils.problem import ProblemPrompts
@@ -6,31 +7,30 @@ from llamda.utils.utils import file_to_string, filter_code
 
 class Evolution:
 
-    def __init__(self, root_dir: str, prompts: ProblemPrompts) -> None:
+    def __init__(self, prompts: ProblemPrompts) -> None:
 
         self.prompts = prompts
 
-        self.root_dir = root_dir
-        self.hsevo_dir = f"{self.root_dir}/llamda/ga/hsevo"
+        self.hsevo_prompts_dir = files('llamda.prompts.ga.hsevo')
 
         # Common prompts
         self.system_generator_prompt = file_to_string(
-            f"{self.hsevo_dir}/prompts/system_generator.txt"
+            self.hsevo_prompts_dir / "system_generator.txt"
         )
         self.system_reflector_prompt = file_to_string(
-            f"{self.hsevo_dir}/prompts/system_reflector.txt"
+            self.hsevo_prompts_dir / "system_reflector.txt"
         )
         self.user_generator_prompt = file_to_string(
-            f"{self.hsevo_dir}/prompts/user_generator.txt"
+            self.hsevo_prompts_dir / "user_generator.txt"
         )
         self.system_hs_prompt = file_to_string(
-            f"{self.hsevo_dir}/prompts/system_harmony_search.txt"
+            self.hsevo_prompts_dir / "system_harmony_search.txt"
         )
-        self.hs_prompt = file_to_string(f"{self.hsevo_dir}/prompts/harmony_search.txt")
+        self.hs_prompt = file_to_string(self.hsevo_prompts_dir / "harmony_search.txt")
 
     def init_population(self, long_term_reflection_str: str, scientist: str) -> dict:
 
-        seed_prompt = file_to_string(f"{self.hsevo_dir}/prompts/seed.txt").format(
+        seed_prompt = file_to_string(self.hsevo_prompts_dir / "seed.txt").format(
             seed_func=self.prompts.seed_func,
             func_name=self.prompts.func_name,
         )
@@ -72,7 +72,7 @@ class Evolution:
         system = self.system_reflector_prompt
 
         user_flash_reflection_prompt = file_to_string(
-            f"{self.hsevo_dir}/prompts/user_flash_reflection.txt"
+            self.hsevo_prompts_dir / "user_flash_reflection.txt"
         )
 
         user = user_flash_reflection_prompt.format(
@@ -108,7 +108,7 @@ class Evolution:
         )
 
         user_comprehensive_reflection_prompt = file_to_string(
-            f"{self.hsevo_dir}/prompts/user_comprehensive_reflection.txt"
+             self.hsevo_prompts_dir / "user_comprehensive_reflection.txt"
         )
 
         user = user_comprehensive_reflection_prompt.format(
@@ -148,7 +148,7 @@ class Evolution:
             func_desc=self.prompts.func_desc,
         )
 
-        crossover_prompt = file_to_string(f"{self.hsevo_dir}/prompts/crossover.txt")
+        crossover_prompt = file_to_string(self.hsevo_prompts_dir / "crossover.txt")
 
         user = crossover_prompt.format(
             user_generator=user_generator_prompt_full,
@@ -185,7 +185,7 @@ class Evolution:
             func_desc=self.prompts.func_desc,
         )
 
-        mutation_prompt = file_to_string(f"{self.hsevo_dir}/prompts/mutation.txt")
+        mutation_prompt = file_to_string(self.hsevo_prompts_dir / "mutation.txt")
         user = mutation_prompt.format(
             user_generator=user_generator_prompt_full,
             reflection=str_comprehensive_memory,

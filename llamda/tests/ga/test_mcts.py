@@ -1,3 +1,4 @@
+from importlib.resources import files
 import logging
 import os
 from pathlib import Path
@@ -30,19 +31,16 @@ def test_mcts() -> None:
 
     # ========================================================================
 
-    root_dir = ROOT_DIR
-
+    problem_prompts_dir = files("llamda.prompts.problems")
     problem_config = ProblemPrompts.load_problem_prompts(
-        f"{root_dir}/llamda/prompts/{problem_name}"
+        str(problem_prompts_dir / problem_name)
     )
-
 
     prompts = adapt_prompt(problem_config)
 
-    evaluator = Evaluator(prompts, root_dir)
+    evaluator = Evaluator(prompts)
 
     ahd_config = AHDConfig()
-
 
     llm_client = client
 

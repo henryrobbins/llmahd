@@ -1,3 +1,4 @@
+from importlib.resources import files
 import logging
 
 from llamda.utils.individual import Individual
@@ -31,7 +32,6 @@ class Evolution:
         init_pop_size: int,
         pop_size: int,
         mutation_rate: float,
-        root_dir: str,
         llm_clients: ReEvoLLMClients,
         prompts: ProblemPrompts,
     ) -> None:
@@ -43,18 +43,17 @@ class Evolution:
         self.llm_clients = llm_clients
         self.prompts = prompts
 
-        self.root_dir = root_dir
-        self.reevo_dir = f"{self.root_dir}/llamda/ga/reevo"
+        self.reevo_prompts_dir = files('llamda.prompts.ga.reevo')
 
         # Common prompts
         self.system_generator_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/system_generator.txt"
+            self.reevo_prompts_dir / "system_generator.txt"
         )
         self.system_reflector_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/system_reflector.txt"
+            self.reevo_prompts_dir / "system_reflector.txt"
         )
         self.user_generator_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/user_generator.txt"
+            self.reevo_prompts_dir / "user_generator.txt"
         ).format(
             func_name=self.prompts.func_name,
             problem_desc=self.prompts.func_desc,
@@ -103,7 +102,7 @@ class Evolution:
         """
 
         user_reflector_st_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/user_reflector_st.txt"
+            self.reevo_prompts_dir / "user_reflector_st.txt"
         )
 
         if ind1.obj == ind2.obj:
@@ -179,7 +178,7 @@ class Evolution:
         """
 
         user_reflector_lt_prompt = file_to_string(
-            f"{self.reevo_dir}/prompts/user_reflector_lt.txt"
+            self.reevo_prompts_dir / "user_reflector_lt.txt"
         )
 
         system = self.system_reflector_prompt
@@ -210,7 +209,7 @@ class Evolution:
         self, short_term_reflection_tuple: tuple[list[list[dict]], list[str], list[str]]
     ) -> list[str]:
 
-        crossover_prompt = file_to_string(f"{self.reevo_dir}/prompts/crossover.txt")
+        crossover_prompt = file_to_string(self.reevo_prompts_dir / "crossover.txt")
 
         reflection_content_lst, worse_code_lst, better_code_lst = (
             short_term_reflection_tuple
@@ -255,7 +254,7 @@ class Evolution:
         Elitist-based mutation. We mutate the best to generate n_pop new individuals.
         """
 
-        mutation_prompt = file_to_string(f"{self.reevo_dir}/prompts/mutation.txt")
+        mutation_prompt = file_to_string(self.reevo_prompts_dir / "mutation.txt")
 
         system = self.system_generator_prompt
         func_signature1 = self.prompts.func_signature.format(version=1)

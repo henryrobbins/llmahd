@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from importlib.resources import files
 import os
 import logging
 import numpy as np
@@ -48,14 +49,12 @@ class HSEvo:
         evaluator: Evaluator,
         temperature: float,
         llm_client: BaseClient,
-        root_dir: str,
         output_dir: str,
     ) -> None:
 
         self.problem = problem_prompts.problem_name
         self.temperature = temperature
         self.config = config
-        self.root_dir = root_dir
         self.output_dir = output_dir
         self.llm_client = llm_client
         os.makedirs(self.output_dir, exist_ok=True)
@@ -77,10 +76,11 @@ class HSEvo:
         self.lst_bad_reflection = []
 
 
-        self.output_file = f"{self.root_dir}/llamda/problems/{self.problem}/gpt.py"
+        problems_dir = files("llamda.problems")
 
+        self.output_file = problems_dir / f"{self.problem}/gpt.py"
 
-        self.evol = Evolution(prompts=self.prompts, root_dir=root_dir)
+        self.evol = Evolution(prompts=self.prompts)
 
         self.evaluator = evaluator
 

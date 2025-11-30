@@ -1,5 +1,5 @@
-from pathlib import Path
 from enum import StrEnum
+from importlib.resources import files
 
 from llamda.utils.problem import EOHProblemPrompts
 from llamda.utils.llm_client.base import BaseClient
@@ -18,7 +18,7 @@ class Evolution:
 
     def __init__(self, llm_client: BaseClient, prompts: EOHProblemPrompts) -> None:
 
-        self.prompts_dir = Path(__file__).parent / "prompts"
+        self.prompts_dir = files('llamda.prompts.ga.eoh')
         self.prompts = prompts
         if len(self.prompts.func_inputs) > 1:
             self.joined_inputs = ", ".join(

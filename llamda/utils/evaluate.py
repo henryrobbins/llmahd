@@ -1,3 +1,4 @@
+from importlib.resources import files
 import logging
 import subprocess
 from typing import TypeVar
@@ -10,12 +11,12 @@ T = TypeVar("T", bound=Individual)
 
 
 class Evaluator:
-    def __init__(self, problem_prompts: BaseProblemPrompts, root_dir: str):
-        self.root_dir = root_dir
+    def __init__(self, problem_prompts: BaseProblemPrompts):
         self.problem_prompts = problem_prompts
-        self.output_file = (
-            f"{self.root_dir}/llamda/problems/{self.problem_prompts.problem_name}/gpt.py"
-        )
+
+        problems_dir = files("llamda.problems")
+
+        self.output_file = problems_dir / f"{self.problem_prompts.problem_name}/gpt.py"
         self.function_evals = 0
 
     def mark_invalid_individual(self, individual: T, traceback_msg: str) -> T:
@@ -115,10 +116,14 @@ class Evaluator:
 
         # Execute the python file with flags
         with open(individual.stdout_filepath, "w") as f:
+
+            problems_dir = files("llamda.problems")
+
             eval_file_path = (
-                f"{self.root_dir}/llamda/problems/{self.problem_prompts.problem_name}/eval.py"
+                problems_dir / f"{self.problem_prompts.problem_name}/eval.py"
                 if self.problem_prompts.problem_type != "black_box"
-                else f"{self.root_dir}/llamda/problems/{self.problem_prompts.problem_name}/eval_black_box.py"
+                else problems_dir
+                / f"{self.problem_prompts.problem_name}/eval_black_box.py"
             )
             process = subprocess.Popen(
                 [
@@ -126,7 +131,7 @@ class Evaluator:
                     "-u",
                     eval_file_path,
                     f"{self.problem_prompts.problem_size}",
-                    self.root_dir,
+                    str(problems_dir),
                     "train",
                 ],
                 stdout=f,
