@@ -28,9 +28,6 @@ class AHDConfig:
         default_factory=lambda: [0, 1, 2, 2, 1]
     )  # weights for operators default
 
-    # Exp settings
-    exp_output_path: str = "/"  # default folder for ael outputs
-
 
 class MCTS_AHD(GeneticAlgorithm[AHDConfig, EOHProblemPrompts]):
 
@@ -59,8 +56,6 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EOHProblemPrompts]):
         self.operator_weights = config.ec_operator_weights
         config.ec_m = 5
         self.m = config.ec_m
-
-        self.output_path = config.exp_output_path
 
         self.eval_times = 0  # number of populations
 
@@ -247,12 +242,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EOHProblemPrompts]):
                     nodes_set = self.expand(mcts, cur_node, nodes_set, op)
                 assert len(cur_node.children) == len(cur_node.children_info)
             # Save population to a file
-            filename = (
-                self.output_path
-                + "population_generation_"
-                + str(self.eval_times)
-                + ".json"
-            )
+            filename = f"{self.output_dir}/population_generation_{self.eval_times}.json"
             with open(filename, "w") as f:
                 json.dump(
                     [individual.to_dict() for individual in nodes_set], f, indent=5
@@ -260,10 +250,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EOHProblemPrompts]):
 
             # Save the best one to a file
             filename = (
-                self.output_path
-                + "best_population_generation_"
-                + str(self.eval_times)
-                + ".json"
+                f"{self.output_dir}/best_population_generation_{self.eval_times}.json"
             )
             with open(filename, "w") as f:
                 json.dump(nodes_set[0].to_dict(), f, indent=5)
