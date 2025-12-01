@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, "../../../")))
 
 import gpt
-from utils.utils import get_heuristic_name
+from utils import get_heuristic_name
 
 
 possible_func_names = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
