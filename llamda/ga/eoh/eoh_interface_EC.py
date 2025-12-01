@@ -2,12 +2,15 @@
 # Originally from EoH: https://github.com/FeiLiu36/EoH/blob/main/eoh/src/eoh/methods/eoh/eoh_interface_EC.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
+import logging
 import numpy as np
 
 from llamda.ga.eoh.eoh_evolution import EOHIndividual, EOHOperator, Evolution
 from llamda.evaluate import Evaluator
 from llamda.problem import EohProblem, hydrate_individual
 from llamda.llm_client.base import BaseClient
+
+logger = logging.getLogger("llamda")
 
 
 class InterfaceEC:
@@ -50,7 +53,10 @@ class InterfaceEC:
             for i, indiv in enumerate(seeds)
         ]
         population = self.interface_eval.batch_evaluate(population)
-        print("Initiliazation finished! Get " + str(len(seeds)) + " seed algorithms")
+        logger.info(
+            "Initialization finished! Get " + str(len(seeds)) + " seed algorithms"
+        )
+
         return population
 
     def _get_alg(
@@ -102,7 +108,7 @@ class InterfaceEC:
                     break
 
         except Exception as e:
-            print(e)
+            logger.error(e)
 
         return p, offspring
 
@@ -123,6 +129,15 @@ class InterfaceEC:
         objs = [indiv.obj for indiv in pop]
         for i, (_, offspring) in enumerate(offspring_list):
             offspring.obj = np.round(objs[i], 5)
+
+        logger.debug(
+            "Algorithm generation complete",
+            extra={
+                "operator": str(operator),
+                "n_offspring": len(offspring_list),
+                "objectives": [float(obj) for obj in objs if obj is not None],
+            },
+        )
 
         results = offspring_list
 

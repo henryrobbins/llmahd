@@ -10,6 +10,8 @@ from llamda.individual import Individual
 from llamda.problem import BaseProblem
 from llamda.utils import block_until_running, filter_traceback
 
+logger = logging.getLogger("llamda")
+
 T = TypeVar("T", bound=Individual)
 
 
@@ -23,6 +25,13 @@ class Evaluator:
         """
         Mark an individual as invalid.
         """
+        logger.warning(
+            "Marking individual as invalid",
+            extra={
+                "response_id": individual.response_id,
+                "traceback_msg": traceback_msg[:200],  # Truncate long messages
+            },
+        )
         individual.exec_success = False
         individual.obj = float("inf")
         individual.traceback_msg = traceback_msg
@@ -33,6 +42,14 @@ class Evaluator:
         Evaluate population by running code in parallel and computing objective values.
         """
         self.iteration = iteration
+        logger.info(
+            "Starting batch evaluation",
+            extra={
+                "iteration": iteration,
+                "population_size": len(population),
+                "function_evals": self.function_evals,
+            },
+        )
 
         inner_runs = []
         # Run code to evaluate
@@ -40,19 +57,26 @@ class Evaluator:
             self.function_evals += 1
             # Skip if response is invalid
             if population[response_id].code is None:
+                logger.debug(
+                    "Skipping invalid response",
+                    extra={"response_id": response_id, "iteration": iteration},
+                )
                 population[response_id] = self.mark_invalid_individual(
                     population[response_id], "Invalid response!"
                 )
                 inner_runs.append(None)
                 continue
 
-            logging.info(f"Iteration {self.iteration}: Running Code {response_id}")
+            logger.info(f"Iteration {self.iteration}: Running Code {response_id}")
 
             try:
                 process = self._run_code(population[response_id], response_id)
                 inner_runs.append(process)
             except Exception as e:  # If code execution fails
-                logging.info(f"Error for response_id {response_id}: {e}")
+                logger.exception(
+                    "Code execution error",
+                    extra={"response_id": response_id, "iteration": iteration},
+                )
                 population[response_id] = self.mark_invalid_individual(
                     population[response_id], str(e)
                 )
@@ -67,7 +91,14 @@ class Evaluator:
                     timeout=self.timeout
                 )  # Wait for code execution to finish
             except subprocess.TimeoutExpired as e:
-                logging.info(f"Error for response_id {response_id}: {e}")
+                logger.error(
+                    "Timeout expired during code execution",
+                    extra={
+                        "response_id": response_id,
+                        "iteration": self.iteration,
+                        "timeout": self.timeout,
+                    },
+                )
                 population[response_id] = self.mark_invalid_individual(
                     population[response_id], str(e)
                 )
@@ -91,25 +122,55 @@ class Evaluator:
                         else individual.obj
                     )
                     individual.exec_success = True
-                except:
+                except Exception as e:
+                    logger.error(
+                        "Failed to parse objective value",
+                        extra={
+                            "response_id": response_id,
+                            "iteration": self.iteration,
+                            "error": str(e),
+                        },
+                    )
                     population[response_id] = self.mark_invalid_individual(
                         population[response_id], "Invalid std out / objective value!"
                     )
             else:  # Otherwise, also provide execution traceback error feedback
+                logger.debug(
+                    "Individual execution failed with traceback",
+                    extra={
+                        "response_id": response_id,
+                        "iteration": self.iteration,
+                        "traceback": traceback_msg,
+                    },
+                )
                 population[response_id] = self.mark_invalid_individual(
                     population[response_id], traceback_msg
                 )
 
-            logging.info(
-                f"Iteration {self.iteration}, response_id {response_id}: Objective value: {individual.obj}"
+            logger.debug(
+                "Individual evaluated successfully",
+                extra={
+                    "response_id": response_id,
+                    "iteration": self.iteration,
+                    "objective": individual.obj,
+                },
             )
+
+        logger.info(
+            "Batch evaluation completed",
+            extra={
+                "iteration": iteration,
+                "function_evals": self.function_evals,
+                "valid_individuals": sum(1 for ind in population if ind.exec_success),
+            },
+        )
         return population
 
     def _run_code(self, individual: T, response_id: int) -> subprocess.Popen:
         """
         Write code into a file and run eval script.
         """
-        logging.debug(f"Iteration {self.iteration}: Processing Code Run {response_id}")
+        logger.debug(f"Iteration {self.iteration}: Processing Code Run {response_id}")
 
         with open(self.problem.code_path, "w") as file:
             file.writelines(individual.code + "\n")

@@ -11,6 +11,8 @@ from llamda.ga.reevo.reevo import ReEvo, ReEvoConfig
 from tests.common import EVALUATIONS_PATH, RESPONSES_PATH
 from tests.mocks import MockClient, MockEvaluator
 
+logger = logging.getLogger(__name__)
+
 
 @pytest.mark.parametrize("problem_name", [ProblemName.TSP_ACO])
 def test_reevo(problem_name: ProblemName, tmp_path: Path) -> None:
@@ -34,4 +36,4 @@ def test_reevo(problem_name: ProblemName, tmp_path: Path) -> None:
     )
 
     best_code_overall, _ = reevo.evolve()
-    logging.info(f"Best Code Overall: {best_code_overall}")
+    logger.info(f"Best Code Overall: {best_code_overall}")

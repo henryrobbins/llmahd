@@ -64,8 +64,8 @@ class BaseClient(object):
         try:
             if not isinstance(messages_list[0], list):
                 messages_list = [messages_list]
-        except:
-            print(messages_list)
+        except Exception as e:
+            logger.error(f"Error processing messages_list: {e}")
             raise IndexError("Something is wrong.")
 
         if len(messages_list) > 1:

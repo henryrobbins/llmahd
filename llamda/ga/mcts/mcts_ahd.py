@@ -4,6 +4,7 @@
 import copy
 import heapq
 import json
+import logging
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -15,6 +16,8 @@ from llamda.evaluate import Evaluator
 from llamda.ga.mcts.evolution_interface import MCTSIndividual, InterfaceEC
 from llamda.llm_client.base import BaseClient
 from llamda.problem import EohProblem
+
+logger = logging.getLogger("llamda")
 
 
 @dataclass
@@ -61,7 +64,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         for ind in population:
             if ind.algorithm == offspring.algorithm:
                 # TODO: no actual retry logic implemented
-                print("duplicated result, retrying ... ")
+                logger.warning("duplicated result, retrying ... ")
         population.append(offspring)
 
     def expand(
@@ -107,23 +110,33 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 operator=MCTSOperator(option),
             )
         if offsprings == None:
-            print(f"Timeout emerge, no expanding with action {option}.")
+            logger.warning(f"Timeout emerge, no expanding with action {option}.")
             return nodes_set
 
         if option != "e1":
-            print(
-                f"Action: {option}, Father Obj: {cur_node.raw_info.obj}, Now Obj: {offsprings.obj}, Depth: {cur_node.depth + 1}"
+            logger.info(
+                "Action",
+                extra={
+                    "action": option,
+                    "father_obj": cur_node.raw_info.obj,
+                    "now_obj": offsprings.obj,
+                    "depth": cur_node.depth + 1,
+                },
             )
         else:
             if self.interface_ec.check_duplicate_obj(
                 mcts.root.children_info, offsprings.obj
             ):
-                print(
-                    f"Duplicated e1, no action, Father is Root, Abandon Obj: {offsprings.obj}"
+                logger.info(
+                    "Duplicated e1, no action, Father is Root",
+                    extra={"abandon_obj": offsprings.obj},
                 )
                 return nodes_set
             else:
-                print(f"Action: {option}, Father is Root, Now Obj: {offsprings.obj}")
+                logger.info(
+                    "Action, Father is Root",
+                    extra={"now_obj": offsprings.obj},
+                )
         if offsprings.obj != float("inf"):
             self.add2pop(
                 nodes_set, offsprings
@@ -149,7 +162,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
 
     # run eoh
     def run(self) -> tuple[str, str]:
-        print("- Initialization Start -")
+        logger.info("Starting MCTS-AHD evolution")
 
         self.interface_ec = InterfaceEC(
             m=self.config.m,
@@ -182,6 +195,15 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         mcts.root.children_info.append(offspring)
         mcts.backpropagate(nownode)
         nownode.subtree.append(nownode)
+
+        logger.info(
+            "Initial node created",
+            extra={
+                "objective": offspring.obj,
+                "eval_times": self.eval_times,
+            },
+        )
+
         for i in range(1, self.config.init_size):
             n_evals, brothers, offspring = self.interface_ec.get_algorithm(
                 brothers, MCTSOperator.E1
@@ -205,10 +227,16 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         nodes_set = brothers
         size_act = min(len(nodes_set), self.config.pop_size)
         nodes_set = manage_population(nodes_set, size_act)
-        print("- Initialization Finished - Evolution Start -")
+
+        logger.info(
+            "Initialization completed",
+            extra={
+                "population_size": len(nodes_set),
+                "eval_times": self.eval_times,
+            },
+        )
         while self.eval_times < self.config.fe_max:
-            print(f"Current performances of MCTS nodes: {mcts.rank_list}")
-            # print([len(node.subtree) for node in mcts.root.children])
+            logger.info("MCTS-AHD iteration", extra={"rank_list": mcts.rank_list})
             cur_node = mcts.root
             while len(cur_node.children) > 0 and cur_node.depth < mcts.max_depth:
                 uct_scores = [
@@ -228,7 +256,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 cur_node = cur_node.children[selected_pair_idx]
             for i in range(n_op):
                 op = self.config.operators[i]
-                print(f"Iter: {self.eval_times}/{self.config.fe_max} OP: {op}", end="|")
+                logger.info(f"Iter: {self.eval_times}/{self.config.fe_max} OP: {op}")
                 op_w = self.config.operator_weights[i]
                 for j in range(op_w):
                     nodes_set = self.expand(mcts, cur_node, nodes_set, op)

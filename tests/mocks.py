@@ -9,6 +9,8 @@ from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient, BaseLLMClientConfig
 from llamda.problem import BaseProblem
 
+logger = logging.getLogger(__name__)
+
 
 class MockResponse:
 
@@ -139,14 +141,14 @@ class MockEvaluator(Evaluator):
                 )
                 continue
 
-            logging.info(
+            logger.info(
                 f"Iteration {self.iteration}: Evaluating Code {response_id} from cache"
             )
 
             # Look up result in cache
             code_key = individual.code
             if code_key not in self.cache:
-                logging.warning(
+                logger.warning(
                     f"Code not found in cache for response_id {response_id}. "
                     f"Marking as invalid."
                 )
@@ -170,7 +172,7 @@ class MockEvaluator(Evaluator):
             else:
                 individual.obj = float("inf")
 
-            logging.info(
+            logger.info(
                 f"Iteration {self.iteration}, response_id {response_id}: "
                 f"Objective value: {individual.obj} (from cache)"
             )

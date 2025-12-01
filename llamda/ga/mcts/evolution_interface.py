@@ -1,6 +1,7 @@
 # Adapted from MCTS-AHD: https://github.com/zz1358m/MCTS-AHD-master/blob/main/source/evolution_interface.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
+import logging
 import copy
 
 import numpy as np
@@ -9,6 +10,8 @@ from llamda.evaluate import Evaluator
 from llamda.problem import EohProblem, hydrate_individual
 from llamda.ga.mcts.evolution import Evolution, MCTSIndividual, MCTSOperator
 from llamda.llm_client.base import BaseClient
+
+logger = logging.getLogger("llamda")
 
 
 class InterfaceEC:
@@ -74,7 +77,9 @@ class InterfaceEC:
                 parents = pop
                 code, thought = self.evol.s1(pop)
             case _:
-                print(f"Evolution operator [{operator}] has not been implemented ! \n")
+                logger.warning(
+                    f"Evolution operator [{operator}] has not been implemented!"
+                )
 
         algorithm = self.evol.post_thought(code, thought)
 
@@ -100,14 +105,14 @@ class InterfaceEC:
                 n_retry = 1
                 while code is None or self.check_duplicate(pop, code):
                     n_retry += 1
-                    print("duplicated code, wait 1 second and retrying ... ")
+                    logger.warning("duplicated code, wait 1 second and retrying ... ")
                     p, offspring = self._get_alg(pop, operator, father=father)
                     code = offspring.code
                     if n_retry > 1:
                         break
                 break
             except Exception as e:
-                print(e)
+                logger.error(e)
         return p, offspring
 
     def get_algorithm(

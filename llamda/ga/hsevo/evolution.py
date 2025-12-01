@@ -7,6 +7,8 @@ import logging
 from llamda.problem import Problem
 from llamda.utils import file_to_string, filter_code
 
+logger = logging.getLogger("llamda")
+
 
 class Evolution:
 
@@ -61,11 +63,9 @@ class Evolution:
 
         pre_messages = {"system": system, "user": user}
 
-        logging.info(
-            "Initial Population Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
+        logger.info(
+            "Initial Population Prompt generated",
+            extra={"system": system, "user": user},
         )
 
         return pre_messages
@@ -86,11 +86,9 @@ class Evolution:
 
         pre_messages = {"system": system, "user": user}
 
-        logging.info(
-            "Flash reflection Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
+        logger.info(
+            "Flash reflection Prompt generated",
+            extra={"system": system, "user": user},
         )
 
         return pre_messages
@@ -122,11 +120,9 @@ class Evolution:
 
         pre_messages = {"system": system, "user": user}
 
-        logging.info(
-            "Comprehensive reflection Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
+        logger.info(
+            "Comprehensive reflection Prompt generated",
+            extra={"system": system, "user": user},
         )
 
         return pre_messages
@@ -165,12 +161,8 @@ class Evolution:
         )
         pre_messages = {"system": system, "user": user}
 
-        # Print crossover prompt for the first iteration
-        logging.info(
-            "Crossover Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
+        logger.info(
+            "Crossover Prompt generated", extra={"system": system, "user": user}
         )
 
         return pre_messages
@@ -199,8 +191,9 @@ class Evolution:
 
         pre_messages = {"system": system, "user": user}
 
-        logging.info(
-            "Mutation Prompt: \nSystem Prompt: \n" + system + "\nUser Prompt: \n" + user
+        logger.info(
+            "Mutation Prompt generated",
+            extra={"system": system, "user": user},
         )
 
         return pre_messages
@@ -210,12 +203,9 @@ class Evolution:
         user = self.hs_prompt.format(code_extract=sel_individual_hs)
         pre_messages = {"system": system, "user": user}
 
-        # Print get hs prompt for the first iteration
-        logging.info(
-            "Harmony Search Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
+        logger.info(
+            "Harmony Search Prompt generated",
+            extra={"system": system, "user": user},
         )
 
         return pre_messages

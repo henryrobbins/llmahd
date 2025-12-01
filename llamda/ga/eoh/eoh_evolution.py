@@ -2,6 +2,7 @@
 # Originally from EoH: https://github.com/FeiLiu36/EoH/blob/main/eoh/src/eoh/methods/eoh/eoh_evolution.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
+import logging
 from enum import StrEnum
 from dataclasses import dataclass
 from importlib.resources import files
@@ -10,6 +11,8 @@ from llamda.individual import Individual
 from llamda.problem import EohProblem
 from llamda.llm_client.base import BaseClient
 from llamda.utils import file_to_string, parse_response
+
+logger = logging.getLogger("llamda")
 
 
 @dataclass
@@ -157,7 +160,7 @@ class Evolution:
 
         n_retry = 1
         while len(algorithms) == 0 or len(code) == 0:
-
+            logger.warning(f"Algorithm or code not identified, retrying ({n_retry}/3)")
             response = chat_completion(
                 client=self.llm_client, prompt_content=prompt_content
             )
@@ -165,31 +168,60 @@ class Evolution:
             algorithms, code = parse_response(response)
 
             if n_retry > 3:
+                logger.warning("Max retries reached, algorithm generation failed")
                 break
             n_retry += 1
 
         algorithm = algorithms[0]
         code_all = code[0] + " " + ", ".join(s for s in self.problem.func_outputs)
 
+        logger.debug(
+            "Algorithm generated successfully",
+            extra={"algorithm": algorithm, "code": len(code)},
+        )
+
         return code_all, algorithm
 
     def i1(self) -> tuple[str, str]:
+        logger.debug("Executing operator I1 (initialization)")
         prompt_content = self.get_prompt_i1()
         return self._get_alg(prompt_content)
 
     def e1(self, parents: list[EOHIndividual]) -> tuple[str, str]:
+        logger.debug(
+            "Executing operator E1 (evolution)",
+            extra={
+                "n_parents": len(parents),
+                "parents_response_ids": [p.response_id for p in parents],
+            },
+        )
         prompt_content = self.get_prompt_e1(parents)
         return self._get_alg(prompt_content)
 
     def e2(self, parents: list[EOHIndividual]) -> tuple[str, str]:
+        logger.debug(
+            "Executing operator E2 (evolution)",
+            extra={
+                "n_parents": len(parents),
+                "parents_response_ids": [p.response_id for p in parents],
+            },
+        )
         prompt_content = self.get_prompt_e2(parents)
         return self._get_alg(prompt_content)
 
     def m1(self, parents: EOHIndividual) -> tuple[str, str]:
+        logger.debug(
+            "Executing operator M1 (mutation)",
+            extra={"parent_response_id": parents.response_id},
+        )
         prompt_content = self.get_prompt_m1(parents)
         return self._get_alg(prompt_content)
 
     def m2(self, parents: EOHIndividual) -> tuple[str, str]:
+        logger.debug(
+            "Executing operator M2 (mutation)",
+            extra={"parent_response_id": parents.response_id},
+        )
         prompt_content = self.get_prompt_m2(parents)
         return self._get_alg(prompt_content)
 

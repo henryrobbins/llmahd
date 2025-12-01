@@ -7,6 +7,8 @@ import logging
 import re
 import inspect
 
+logger = logging.getLogger("llamda")
+
 
 def file_to_string(filename):
     with open(filename, "r") as file:
@@ -40,11 +42,11 @@ def block_until_running(stdout_filepath, log_status=False, iter_num=-1, response
         log = file_to_string(stdout_filepath)
         if len(log) > 0:
             if log_status and "Traceback" in log:
-                logging.warning(
+                logger.warning(
                     f"Iteration {iter_num}: Code Run {response_id} execution error! (see {print_hyperlink(stdout_filepath, 'stdout')}))"
                 )
             else:
-                logging.info(
+                logger.info(
                     f"Iteration {iter_num}: Code Run {response_id} successful! (see {print_hyperlink(stdout_filepath, 'stdout')})"
                 )
             break

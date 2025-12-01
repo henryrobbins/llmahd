@@ -2,6 +2,7 @@
 # Originally from EoH: https://github.com/FeiLiu36/EoH/blob/main/eoh/src/eoh/methods/eoh/eoh.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
+import logging
 from dataclasses import dataclass, field
 import numpy as np
 import json
@@ -14,6 +15,8 @@ from llamda.evaluate import Evaluator
 from llamda.ga.eoh.eoh_interface_EC import EOHIndividual, InterfaceEC
 from llamda.llm_client.base import BaseClient
 from llamda.problem import EohProblem
+
+logger = logging.getLogger("llamda")
 
 # See original EOH adapter implementation in the reevo repository:
 # https://github.com/ai4co/reevo/blob/main/baselines/eoh/eoh_adapter.py
@@ -81,7 +84,7 @@ class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
             for ind in population:
                 if ind.obj == off.obj:
                     # TODO: No retry logic is actually happening here
-                    print("duplicated result, retrying ... ")
+                    logger.info("duplicated result, retrying ... ")
             population.append(off)
 
     def _load_seed_population(
@@ -102,7 +105,7 @@ class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
             data = json.load(file)
         for individual in data:
             population.append(individual)
-        print("initial population has been loaded!")
+        logger.info("initial population has been loaded!")
         n_start = self.config.exp_continue_id
         return population, n_start
 
@@ -112,11 +115,11 @@ class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
         population = interface_ec.population_generation()
         population = manage_population(population, self.config.pop_size)
 
-        print("Pop initial: ")
-        for off in population:
-            print(" Obj: ", off.obj, end="|")
-        print()
-        print("initial population has been created!")
+        logger.info(
+            "Initial population has been created!",
+            extra={"population_objs": [indiv.obj for indiv in population]},
+        )
+
         # Save population to a file
         filename = f"{self.output_dir}/population_generation_0.json"
         with open(filename, "w") as f:
@@ -150,7 +153,7 @@ class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
 
     def run(self) -> tuple[str, str]:
 
-        print("- Evolution Start -")
+        logger.info("Starting EOH evolution")
 
         time_start = time.time()
 
@@ -164,11 +167,18 @@ class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
         )
 
         population, n_start = self._initialize_population(interface_ec)
+        logger.info(
+            "Initial population created",
+            extra={"population_size": len(population), "n_start": n_start},
+        )
 
         for pop in range(n_start, self.config.n_pop):
-            # print(f" [{na + 1} / {self.pop_size}] ", end="|")
+            logger.info(f"Starting population {pop + 1} of {self.config.n_pop}")
             for i, op in enumerate(self.config.operators):
-                print(f" OP: {op}, [{i + 1} / {len(self.config.operators)}] ", end="|")
+                logger.info(
+                    f"Applying operator [{i + 1} / {len(self.config.operators)}]",
+                    extra={"operator": op, "population_index": pop},
+                )
                 # TODO: These operator weights aren't being used as expected
                 op_w = self.config.operator_weights[i]
                 if np.random.rand() < op_w:
@@ -177,8 +187,11 @@ class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
                     )
                 # Check duplication, and add the new offspring
                 self.add2pop(population, offsprings)
-                for off in offsprings:
-                    print(" Obj: ", off.obj, end="|")
+                logger.info(
+                    "Offsprings added to population",
+                    extra={"offspring_objs": [off.obj for off in offsprings]},
+                )
+
                 # Population management
                 size_act = min(len(population), self.config.pop_size)
                 population = manage_population(population, size_act)
@@ -187,17 +200,28 @@ class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
             filename = self._population_checkpoint(n=pop, population=population)
 
             # Logging
-            print(
-                f"--- {pop + 1} of {self.config.n_pop} populations finished. "
-                f"Time Cost:  {((time.time()-time_start)/60):.1f} m"
+            elapsed_time = (time.time() - time_start) / 60
+            logger.info(
+                f"Population {pop + 1} completed",
+                extra={
+                    "population_index": pop + 1,
+                    "total_populations": self.config.n_pop,
+                    "elapsed_time_minutes": elapsed_time,
+                    "best_objective": population[0].obj if population else None,
+                    "pop_objectives": [indiv.obj for indiv in population],
+                },
             )
-            print("Pop Objs: ", end=" ")
-            for i in range(len(population)):
-                print(str(population[i].obj) + " ", end="")
-            print()
 
         code = population[0].code
         assert code is not None
+
+        logger.info(
+            "EOH evolution completed",
+            extra={
+                "best_objective": population[0].obj,
+                "total_time_minutes": (time.time() - time_start) / 60,
+            },
+        )
 
         return code, filename
 

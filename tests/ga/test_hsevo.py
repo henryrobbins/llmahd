@@ -10,6 +10,8 @@ from llamda.problem import Problem, ProblemName
 from tests.common import EVALUATIONS_PATH, RESPONSES_PATH
 from tests.mocks import MockClient, MockEvaluator
 
+logger = logging.getLogger(__name__)
+
 
 @pytest.mark.parametrize("problem_name", [ProblemName.TSP_ACO])
 def test_hsevo(problem_name: ProblemName, tmp_path: Path) -> None:
@@ -33,5 +35,5 @@ def test_hsevo(problem_name: ProblemName, tmp_path: Path) -> None:
     )
 
     best_code_overall, best_code_path_overall = hsevo.evolve()
-    logging.info(f"Best Code Overall: {best_code_overall}")
-    logging.info(f"Best Code Path Overall: {best_code_path_overall}")
+    logger.info(f"Best Code Overall: {best_code_overall}")
+    logger.info(f"Best Code Path Overall: {best_code_path_overall}")

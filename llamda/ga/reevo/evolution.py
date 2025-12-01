@@ -9,6 +9,8 @@ from llamda.llm_client.base import BaseClient
 from llamda.problem import Problem
 from llamda.utils import file_to_string, filter_code
 
+logger = logging.getLogger("llamda")
+
 
 class ReEvoLLMClients:
     def __init__(
@@ -82,12 +84,8 @@ class Evolution:
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ]
-        logging.info(
-            "Initial Population Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
-        )
+
+        logger.info("Initial Population Prompt", extra={"system": system, "user": user})
 
         responses = self.llm_clients.generator_llm.multi_chat_completion(
             [messages],
@@ -109,7 +107,6 @@ class Evolution:
         )
 
         if ind1.obj == ind2.obj:
-            print(ind1.code, ind2.code)
             raise ValueError(
                 "Two individuals to crossover have the same objective value!"
             )
@@ -135,12 +132,8 @@ class Evolution:
             {"role": "user", "content": user},
         ]
 
-        # Print reflection prompt for the first iteration
-        logging.info(
-            "Short-term Reflection Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
+        logger.info(
+            "Short-term Reflection Prompt", extra={"system": system, "user": user}
         )
 
         return message, worse_code, better_code
@@ -195,11 +188,8 @@ class Evolution:
             {"role": "user", "content": user},
         ]
 
-        logging.info(
-            "Long-term Reflection Prompt: \nSystem Prompt: \n"
-            + system
-            + "\nUser Prompt: \n"
-            + user
+        logger.info(
+            "Long-term Reflection Prompt", extra={"system": system, "user": user}
         )
 
         response = self.llm_clients.long_reflector_llm.multi_chat_completion(
@@ -240,13 +230,7 @@ class Evolution:
             ]
             messages_lst.append(messages)
 
-            # Print crossover prompt for the first iteration
-            logging.info(
-                "Crossover Prompt: \nSystem Prompt: \n"
-                + system
-                + "\nUser Prompt: \n"
-                + user
-            )
+            logger.info("Crossover Prompt", extra={"system": system, "user": user})
 
         # Asynchronously generate responses
         responses = self.llm_clients.crossover_llm.multi_chat_completion(messages_lst)
@@ -273,9 +257,7 @@ class Evolution:
             {"role": "user", "content": user},
         ]
 
-        logging.info(
-            "Mutation Prompt: \nSystem Prompt: \n" + system + "\nUser Prompt: \n" + user
-        )
+        logger.info("Mutation Prompt", extra={"system": system, "user": user})
 
         responses = self.llm_clients.mutation_llm.multi_chat_completion(
             [messages], int(self.pop_size * self.mutation_rate)

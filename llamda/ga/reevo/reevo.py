@@ -15,6 +15,8 @@ from llamda.llm_client.base import BaseClient
 from llamda.problem import Problem
 from llamda.utils import extract_code_from_generator, print_hyperlink
 
+logger = logging.getLogger("llamda")
+
 
 @dataclass
 class ReEvoConfig:
@@ -164,16 +166,17 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
         # update elitist
         if self.elitist is None or best_obj < self.elitist.obj:
             self.elitist = population[best_sample_idx]
-            logging.info(f"Iteration {self.iteration}: Elitist: {self.elitist.obj}")
+            logger.info(f"Iteration {self.iteration}: Elitist: {self.elitist.obj}")
 
         best_path = self.best_code_path_overall.replace(".py", ".txt").replace(
             "code", "response"
         )
-        logging.info(
+        logger.info(
             f"Best obj: {self.best_obj_overall}, Best Code Path: {print_hyperlink(best_path, self.best_code_path_overall)}"
         )
-        logging.info(f"Iteration {self.iteration} finished...")
-        logging.info(f"Function Evals: {self.evaluator.function_evals}")
+        logger.info(f"Iteration {self.iteration} finished...")
+        logger.info(f"Function Evals: {self.evaluator.function_evals}")
+
         self.iteration += 1
 
     def rank_select(self, population: list[Individual]) -> list[Individual] | None:
@@ -264,9 +267,19 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             file.writelines(self.long_term_reflection_str + "\n")
 
     def evolve(self) -> tuple[str, str]:
+        logger.info("Starting ReEvo evolution")
         while self.evaluator.function_evals < self.config.max_fe:
+            logger.debug(
+                "Evolution iteration",
+                extra={
+                    "iteration": self.iteration,
+                    "function_evals": self.evaluator.function_evals,
+                    "max_fe": self.config.max_fe,
+                },
+            )
             # If all individuals are invalid, stop
             if all([not individual.exec_success for individual in self.population]):
+                logger.error("All individuals are invalid, stopping evolution")
                 raise RuntimeError(
                     f"All individuals are invalid. Please check the stdout files in {os.getcwd()}."
                 )
@@ -278,17 +291,27 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             )  # add elitist to population for selection
             selected_population = self.random_select(population_to_select)
             if selected_population is None:
+                logger.error("Selection failed")
                 raise RuntimeError("Selection failed. Please check the population.")
+
+            logger.debug(f"Selected {len(selected_population)} individuals")
+
             # Short-term reflection
             short_term_reflection_tuple = self.evol.short_term_reflection(
                 selected_population
             )  # (response_lst, worse_code_lst, better_code_lst)
+
+            logger.debug("Short-term reflection complete")
+
             # Crossover
             crossed_response_lst = self.evol.crossover(short_term_reflection_tuple)
             crossed_population = [
                 self.response_to_individual(response, response_id)
                 for response_id, response in enumerate(crossed_response_lst)
             ]
+
+            logger.debug(f"Crossover generated {len(crossed_population)} individuals")
+
             # Evaluate
             self.population = self.evaluator.batch_evaluate(crossed_population)
             # Update
@@ -297,6 +320,9 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             self.long_term_reflection(
                 [response for response in short_term_reflection_tuple[0]]
             )
+
+            logger.debug("Long-term reflection complete")
+
             # Mutate
             mutated_response_lst = self.evol.mutate(
                 self.long_term_reflection_str, self.elitist
@@ -305,9 +331,20 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
                 self.response_to_individual(response, response_id)
                 for response_id, response in enumerate(mutated_response_lst)
             ]
+
+            logger.debug(f"Mutation generated {len(mutated_population)} individuals")
+
             # Evaluate
             self.population.extend(self.evaluator.batch_evaluate(mutated_population))
             # Update
             self.update_iter()
+
+        logger.info(
+            "ReEvo evolution completed",
+            extra={
+                "best_objective": self.best_obj_overall,
+                "function_evals": self.evaluator.function_evals,
+            },
+        )
 
         return self.best_code_overall, self.best_code_path_overall

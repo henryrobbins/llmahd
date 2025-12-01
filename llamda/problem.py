@@ -1,4 +1,5 @@
 from importlib.resources import files
+import logging
 import os
 from pathlib import Path
 import re
@@ -9,6 +10,8 @@ from dataclasses import dataclass
 
 from llamda.individual import Individual
 from llamda.utils import file_to_string
+
+logger = logging.getLogger("llamda")
 
 
 T = TypeVar("T", bound=Individual)
@@ -60,8 +63,10 @@ class Problem(BaseProblem):
         func_desc = file_to_string(prompts_path / "func_desc.txt")
         if os.path.exists(prompts_path / "external_knowledge.txt"):
             external_knowledge = file_to_string(prompts_path / "external_knowledge.txt")
+            logger.debug("External knowledge file found and loaded")
         else:
             external_knowledge = ""
+            logger.debug("No external knowledge file found")
 
         return cls(
             name=config["problem_name"],
@@ -164,6 +169,15 @@ def adapt_prompt(problem: Problem) -> EohProblem:
         func_outputs = ["utility_value"]
     else:
         func_outputs = ["result"]
+
+    logger.debug(
+        "Prompt adapted",
+        extra={
+            "func_name": func_name,
+            "func_inputs": func_inputs,
+            "func_outputs": func_outputs,
+        },
+    )
 
     return EohProblem(
         name=problem.name,

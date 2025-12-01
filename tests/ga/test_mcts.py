@@ -12,6 +12,8 @@ from llamda.ga.mcts.mcts_ahd import MCTS_AHD as LHH
 from tests.common import EVALUATIONS_PATH, RESPONSES_PATH
 from tests.mocks import MockClient, MockEvaluator
 
+logger = logging.getLogger(__name__)
+
 
 @pytest.mark.parametrize("problem_name", [ProblemName.TSP_ACO])
 def test_mcts(problem_name: ProblemName, tmp_path: Path) -> None:
@@ -37,4 +39,4 @@ def test_mcts(problem_name: ProblemName, tmp_path: Path) -> None:
     )
 
     best_code_overall, _ = lhh.run()
-    logging.info(f"Best Code Overall: {best_code_overall}")
+    logger.info(f"Best Code Overall: {best_code_overall}")
