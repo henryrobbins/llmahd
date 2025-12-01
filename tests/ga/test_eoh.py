@@ -25,7 +25,7 @@ def test_eoh(problem_name: str, tmp_path: Path) -> None:
     )
 
     llh = EOH(
-        config=EoHConfig(ec_pop_size=3),
+        config=EoHConfig(pop_size=3),
         problem=eoh_problem,
         evaluator=evaluator,
         llm_client=client,

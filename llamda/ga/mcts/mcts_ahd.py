@@ -19,12 +19,12 @@ class AHDConfig:
     # MCTS configuration
     pop_size: int = 10  # Size of Elite set E, default = 10
     init_size: int = 4  # Number of initial nodes N_I, default = 4
-    ec_fe_max: int = 1000  # Number of evaluations, default = 1000
-    ec_operators: list[str] = field(
+    fe_max: int = 1000  # Number of evaluations, default = 1000
+    operators: list[str] = field(
         default_factory=lambda: ["e1", "e2", "m1", "m2", "s1"]
     )  # evolution operators
-    ec_m: int = 2
-    ec_operator_weights: list[int] = field(
+    m: int = 5  # Note: m=5 was a manual override in the original implementation
+    operator_weights: list[int] = field(
         default_factory=lambda: [0, 1, 2, 2, 1]
     )  # weights for operators default
 
@@ -47,15 +47,6 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
             llm_client=llm_client,
             output_dir=output_dir,
         )
-
-        # MCTS Configuration
-        self.init_size = config.init_size
-        self.pop_size = config.pop_size
-        self.fe_max = config.ec_fe_max  # function evaluation times
-        self.operators = config.ec_operators
-        self.operator_weights = config.ec_operator_weights
-        config.ec_m = 5
-        self.m = config.ec_m
 
         self.eval_times = 0  # number of populations
 
@@ -138,7 +129,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
             self.add2pop(
                 nodes_set, offsprings
             )  # Check duplication, and add the new offspring
-            size_act = min(len(nodes_set), self.pop_size)
+            size_act = min(len(nodes_set), self.config.pop_size)
             nodes_set = manage_population(nodes_set, size_act)
             nownode = MCTSNode(
                 offsprings.algorithm,
@@ -162,7 +153,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         print("- Initialization Start -")
 
         self.interface_ec = InterfaceEC(
-            m=self.m,
+            m=self.config.m,
             problem=self.problem,
             evaluator=self.evaluator,
             llm_client=self.llm_client,
@@ -172,7 +163,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         brothers: list[MCTSIndividual] = []
         mcts = MCTS("Root")
         # main loop
-        n_op = len(self.operators)
+        n_op = len(self.config.operators)
         n_evals, brothers, offspring = self.interface_ec.get_algorithm(
             brothers, MCTSOperator.I1
         )
@@ -192,7 +183,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         mcts.root.children_info.append(offspring)
         mcts.backpropagate(nownode)
         nownode.subtree.append(nownode)
-        for i in range(1, self.init_size):
+        for i in range(1, self.config.init_size):
             n_evals, brothers, offspring = self.interface_ec.get_algorithm(
                 brothers, MCTSOperator.E1
             )
@@ -213,16 +204,16 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
             mcts.backpropagate(nownode)
             nownode.subtree.append(nownode)
         nodes_set = brothers
-        size_act = min(len(nodes_set), self.pop_size)
+        size_act = min(len(nodes_set), self.config.pop_size)
         nodes_set = manage_population(nodes_set, size_act)
         print("- Initialization Finished - Evolution Start -")
-        while self.eval_times < self.fe_max:
+        while self.eval_times < self.config.fe_max:
             print(f"Current performances of MCTS nodes: {mcts.rank_list}")
             # print([len(node.subtree) for node in mcts.root.children])
             cur_node = mcts.root
             while len(cur_node.children) > 0 and cur_node.depth < mcts.max_depth:
                 uct_scores = [
-                    mcts.uct(node, max(1 - self.eval_times / self.fe_max, 0))
+                    mcts.uct(node, max(1 - self.eval_times / self.config.fe_max, 0))
                     for node in cur_node.children
                 ]
                 selected_pair_idx = uct_scores.index(max(uct_scores))
@@ -233,13 +224,13 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                     else:
                         # i = random.randint(1, n_op - 1)
                         i = 1
-                        op = self.operators[i]
+                        op = self.config.operators[i]
                         nodes_set = self.expand(mcts, cur_node, nodes_set, op)
                 cur_node = cur_node.children[selected_pair_idx]
             for i in range(n_op):
-                op = self.operators[i]
-                print(f"Iter: {self.eval_times}/{self.fe_max} OP: {op}", end="|")
-                op_w = self.operator_weights[i]
+                op = self.config.operators[i]
+                print(f"Iter: {self.eval_times}/{self.config.fe_max} OP: {op}", end="|")
+                op_w = self.config.operator_weights[i]
                 for j in range(op_w):
                     nodes_set = self.expand(mcts, cur_node, nodes_set, op)
                 assert len(cur_node.children) == len(cur_node.children_info)

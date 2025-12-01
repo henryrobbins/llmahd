@@ -29,7 +29,7 @@ def test_mcts(problem_name: str, tmp_path: Path) -> None:
     )
 
     lhh = LHH(
-        config=AHDConfig(init_size=5, ec_fe_max=15),
+        config=AHDConfig(init_size=5, fe_max=15),
         problem=eoh_problem,
         evaluator=evaluator,
         output_dir=str(tmp_path / "test_mcts"),
