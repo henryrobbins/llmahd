@@ -1,24 +1,19 @@
 from importlib.resources import files
 import logging
-import os
 import numpy as np
+from pathlib import Path
 import pytest
 
 from llamda.ga.hsevo.hsevo import HSEvo, HSEvoConfig
 from llamda.utils.llm_client.base import BaseLLMClientConfig
 from llamda.utils.problem import ProblemPrompts
-from llamda.utils.utils import get_output_dir
 
 from tests.common import EVALUATIONS_PATH, RESPONSES_PATH
 from tests.mocks import MockClient, MockEvaluator
 
-ROOT_DIR = os.getcwd()
-output_dir = get_output_dir("test_hsevo", ROOT_DIR)
-logging.basicConfig(level=logging.INFO)
-
 
 @pytest.mark.parametrize("problem_name", ["tsp_aco"])
-def test_hsevo(problem_name: str) -> None:
+def test_hsevo(problem_name: str, tmp_path: Path) -> None:
     np.random.seed(42)
 
     client = MockClient(
@@ -37,7 +32,7 @@ def test_hsevo(problem_name: str) -> None:
         problem=prompts,
         evaluator=evaluator,
         llm_client=client,
-        output_dir=output_dir,
+        output_dir=str(tmp_path / "test_hsevo"),
     )
 
     best_code_overall, best_code_path_overall = hsevo.evolve()

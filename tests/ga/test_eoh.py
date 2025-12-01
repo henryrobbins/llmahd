@@ -1,23 +1,18 @@
 from importlib.resources import files
 import logging
-import os
+from pathlib import Path
 import pytest
 
 from llamda.utils.llm_client.base import BaseLLMClientConfig
 from llamda.utils.problem import ProblemPrompts, adapt_prompt
-from llamda.utils.utils import get_output_dir
 from llamda.ga.eoh.eoh import EOH, EoHConfig
 
 from tests.common import EVALUATIONS_PATH, RESPONSES_PATH
 from tests.mocks import MockClient, MockEvaluator
 
-ROOT_DIR = os.getcwd()
-ouput_dir = get_output_dir("test_eoh", ROOT_DIR)
-logging.basicConfig(level=logging.INFO)
-
 
 @pytest.mark.parametrize("problem_name", ["tsp_aco"])
-def test_eoh(problem_name: str) -> None:
+def test_eoh(problem_name: str, tmp_path: Path) -> None:
 
     client = MockClient(
         config=BaseLLMClientConfig(model="mock", temperature=1.0),
@@ -36,7 +31,7 @@ def test_eoh(problem_name: str) -> None:
         problem=eoh_problem_prompts,
         evaluator=evaluator,
         llm_client=client,
-        output_dir=ouput_dir,
+        output_dir=str(tmp_path / "test_eoh"),
     )
 
     best_code_overall, _ = llh.run()
