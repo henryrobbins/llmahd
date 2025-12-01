@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from llamda.llm_client.base import BaseLLMClientConfig
-from llamda.problem import ProblemPrompts, adapt_prompt
+from llamda.problem import Problem, adapt_prompt
 from llamda.ga.eoh.eoh import EOH, EoHConfig
 
 from tests.common import EVALUATIONS_PATH, RESPONSES_PATH
@@ -18,17 +18,15 @@ def test_eoh(problem_name: str, tmp_path: Path) -> None:
         config=BaseLLMClientConfig(model="mock", temperature=1.0),
         responses_dir=str(RESPONSES_PATH / "eoh"),
     )
-    problem_prompts = ProblemPrompts.load_problem_prompts(
-        str(files("llamda.prompts.problems") / problem_name)
-    )
-    eoh_problem_prompts = adapt_prompt(problem_prompts)
+    problem = Problem.load_problem(str(files("llamda.prompts.problems") / problem_name))
+    eoh_problem = adapt_prompt(problem)
     evaluator = MockEvaluator(
-        eoh_problem_prompts, evaluation_path=str(EVALUATIONS_PATH / "eoh.json")
+        eoh_problem, evaluation_path=str(EVALUATIONS_PATH / "eoh.json")
     )
 
     llh = EOH(
         config=EoHConfig(ec_pop_size=3),
-        problem=eoh_problem_prompts,
+        problem=eoh_problem,
         evaluator=evaluator,
         llm_client=client,
         output_dir=str(tmp_path / "test_eoh"),

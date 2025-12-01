@@ -4,20 +4,20 @@ import subprocess
 from typing import TypeVar
 
 from llamda.individual import Individual
-from llamda.problem import BaseProblemPrompts
+from llamda.problem import BaseProblem
 from llamda.utils import block_until_running, filter_traceback
 
 T = TypeVar("T", bound=Individual)
 
 
 class Evaluator:
-    def __init__(self, problem_prompts: BaseProblemPrompts, timeout: int = 30) -> None:
-        self.problem_prompts = problem_prompts
+    def __init__(self, problem: BaseProblem, timeout: int = 30) -> None:
+        self.problem = problem
         self.timeout = timeout
 
         problems_dir = files("llamda.problems")
 
-        self.output_file = problems_dir / f"{self.problem_prompts.problem_name}/gpt.py"
+        self.output_file = problems_dir / f"{self.problem.name}/gpt.py"
         self.function_evals = 0
 
     def mark_invalid_individual(self, individual: T, traceback_msg: str) -> T:
@@ -88,7 +88,7 @@ class Evaluator:
                     assert individual.obj > 0, "Objective value <= 0 is not supported."
                     individual.obj = (
                         -individual.obj
-                        if self.problem_prompts.obj_type == "max"
+                        if self.problem.obj_type == "max"
                         else individual.obj
                     )
                     individual.exec_success = True
@@ -121,17 +121,16 @@ class Evaluator:
             problems_dir = files("llamda.problems")
 
             eval_file_path = (
-                problems_dir / f"{self.problem_prompts.problem_name}/eval.py"
-                if self.problem_prompts.problem_type != "black_box"
-                else problems_dir
-                / f"{self.problem_prompts.problem_name}/eval_black_box.py"
+                problems_dir / f"{self.problem.name}/eval.py"
+                if self.problem.type != "black_box"
+                else problems_dir / f"{self.problem.name}/eval_black_box.py"
             )
             process = subprocess.Popen(
                 [
                     "python",
                     "-u",
                     str(eval_file_path),
-                    f"{self.problem_prompts.problem_size}",
+                    f"{self.problem.size}",
                     str(problems_dir),
                     "train",
                 ],

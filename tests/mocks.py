@@ -7,7 +7,7 @@ from typing import Any, TypeVar
 from llamda.evaluate import Evaluator
 from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient, BaseLLMClientConfig
-from llamda.problem import BaseProblemPrompts
+from llamda.problem import BaseProblem
 
 
 class MockResponse:
@@ -96,12 +96,12 @@ class MockEvaluator(Evaluator):
 
     def __init__(
         self,
-        problem_prompts: BaseProblemPrompts,
+        problem: BaseProblem,
         evaluation_path: str | Path,
         timeout: int = 30,
     ) -> None:
 
-        self.problem_prompts = problem_prompts
+        self.problem = problem
         self.timeout = timeout
         self.evaluation_path = Path(evaluation_path)
         self.function_evals = 0
@@ -165,7 +165,7 @@ class MockEvaluator(Evaluator):
                 # Apply objective type transformation (min vs max)
                 obj_value = cached_result["obj"]
                 individual.obj = (
-                    -obj_value if self.problem_prompts.obj_type == "max" else obj_value
+                    -obj_value if self.problem.obj_type == "max" else obj_value
                 )
             else:
                 individual.obj = float("inf")

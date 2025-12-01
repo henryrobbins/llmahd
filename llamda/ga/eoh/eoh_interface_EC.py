@@ -1,11 +1,10 @@
-import logging
 import random
 
 import numpy as np
 
 from llamda.ga.eoh.eoh_evolution import EOHIndividual, EOHOperator, Evolution
 from llamda.evaluate import Evaluator
-from llamda.problem import EOHProblemPrompts, hydrate_individual
+from llamda.problem import EohProblem, hydrate_individual
 from llamda.llm_client.base import BaseClient
 
 
@@ -14,7 +13,7 @@ class InterfaceEC:
         self,
         pop_size: int,
         m: int,
-        interface_prob: EOHProblemPrompts,
+        problem: EohProblem,
         evaluator: Evaluator,
         llm_client: BaseClient,
         output_dir: str,
@@ -22,7 +21,7 @@ class InterfaceEC:
         self.pop_size = pop_size
         self.m = m
         self.interface_eval = evaluator
-        self.evol = Evolution(llm_client=llm_client, prompts=interface_prob)
+        self.evol = Evolution(llm_client=llm_client, problem=problem)
         self.output_dir = output_dir
 
     def check_duplicate(self, population: list[EOHIndividual], code: str) -> bool:

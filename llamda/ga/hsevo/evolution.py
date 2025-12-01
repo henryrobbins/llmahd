@@ -1,15 +1,15 @@
 from importlib.resources import files
 import logging
 
-from llamda.problem import ProblemPrompts
+from llamda.problem import Problem
 from llamda.utils import file_to_string, filter_code
 
 
 class Evolution:
 
-    def __init__(self, prompts: ProblemPrompts) -> None:
+    def __init__(self, problem: Problem) -> None:
 
-        self.prompts = prompts
+        self.problem = problem
 
         self.hsevo_prompts_dir = files("llamda.prompts.ga.hsevo")
 
@@ -31,15 +31,15 @@ class Evolution:
     def init_population(self, long_term_reflection_str: str, scientist: str) -> dict:
 
         seed_prompt = file_to_string(self.hsevo_prompts_dir / "seed.txt").format(
-            seed_func=self.prompts.seed_func,
-            func_name=self.prompts.func_name,
+            seed_func=self.problem.seed_func,
+            func_name=self.problem.func_name,
         )
 
         user_generator_prompt_full = self.user_generator_prompt.format(
             seed=scientist,
-            func_name=self.prompts.func_name,
-            problem_desc=self.prompts.problem_desc,
-            func_desc=self.prompts.func_desc,
+            func_name=self.problem.func_name,
+            problem_desc=self.problem.description,
+            func_desc=self.problem.func_desc,
         )
 
         system_generator_prompt_full = self.system_generator_prompt.format(
@@ -76,7 +76,7 @@ class Evolution:
         )
 
         user = user_flash_reflection_prompt.format(
-            problem_desc=self.prompts.problem_desc,
+            problem_desc=self.problem.description,
             lst_method="\n".join(lst_str_method),
             schema_reflection={"analyze": "str", "exp": "str"},
         )
@@ -139,13 +139,13 @@ class Evolution:
 
         # Crossover
         system = self.system_generator_prompt.format(seed=scientist)
-        func_signature_m1 = self.prompts.func_signature.format(version=0)
-        func_signature_m2 = self.prompts.func_signature.format(version=1)
+        func_signature_m1 = self.problem.func_signature.format(version=0)
+        func_signature_m2 = self.problem.func_signature.format(version=1)
         user_generator_prompt_full = self.user_generator_prompt.format(
             seed=scientist,
-            func_name=self.prompts.func_name,
-            problem_desc=self.prompts.problem_desc,
-            func_desc=self.prompts.func_desc,
+            func_name=self.problem.func_name,
+            problem_desc=self.problem.description,
+            func_desc=self.problem.func_desc,
         )
 
         crossover_prompt = file_to_string(self.hsevo_prompts_dir / "crossover.txt")
@@ -158,7 +158,7 @@ class Evolution:
             code_method2=filter_code(parent_2_code),
             analyze=str_flash_memory["analyze"],
             exp=str_comprehensive_memory,
-            func_name=self.prompts.func_name,
+            func_name=self.problem.func_name,
         )
         pre_messages = {"system": system, "user": user}
 
@@ -177,12 +177,12 @@ class Evolution:
     ) -> dict:
         """Elitist-based mutation. We only mutate the best individual to generate n_pop new individuals."""
         system = self.system_generator_prompt.format(seed=scientist)
-        func_signature1 = self.prompts.func_signature.format(version=1)
+        func_signature1 = self.problem.func_signature.format(version=1)
         user_generator_prompt_full = self.user_generator_prompt.format(
             seed=scientist,
-            func_name=self.prompts.func_name,
-            problem_desc=self.prompts.problem_desc,
-            func_desc=self.prompts.func_desc,
+            func_name=self.problem.func_name,
+            problem_desc=self.problem.description,
+            func_desc=self.problem.func_desc,
         )
 
         mutation_prompt = file_to_string(self.hsevo_prompts_dir / "mutation.txt")
@@ -191,7 +191,7 @@ class Evolution:
             reflection=str_comprehensive_memory,
             func_signature1=func_signature1,
             elitist_code=filter_code(elitist),
-            func_name=self.prompts.func_name,
+            func_name=self.problem.func_name,
         )
 
         pre_messages = {"system": system, "user": user}

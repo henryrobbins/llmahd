@@ -10,7 +10,7 @@ from llamda.ga.reevo.evolution import Evolution, ReEvoLLMClients
 from llamda.evaluate import Evaluator
 from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient
-from llamda.problem import ProblemPrompts
+from llamda.problem import Problem
 from llamda.utils import extract_code_from_generator, print_hyperlink
 
 
@@ -24,11 +24,11 @@ class ReEvoConfig:
     diversify_init_pop: bool = True  # whether to diversify the initial population
 
 
-class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
+class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
     def __init__(
         self,
         config: ReEvoConfig,
-        problem: ProblemPrompts,
+        problem: Problem,
         evaluator: Evaluator,
         output_dir: str,
         llm_client: BaseClient,
@@ -49,9 +49,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
             output_dir=output_dir,
         )
 
-        self.output_file = (
-            files("llamda.problems") / f"{self.problem.problem_name}/gpt.py"
-        )
+        self.output_file = files("llamda.problems") / f"{self.problem.name}/gpt.py"
 
         self.evol = Evolution(
             init_pop_size=self.config.init_pop_size,
@@ -65,7 +63,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
                 crossover_llm=crossover_llm,
                 mutation_llm=mutation_llm,
             ),
-            prompts=self.problem,
+            problem=self.problem,
         )
 
         self.evaluator = evaluator
@@ -182,7 +180,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
         """
         Rank-based selection, select individuals with probability proportional to rank.
         """
-        if self.problem.problem_type == "black_box":
+        if self.problem.type == "black_box":
             population = [
                 individual
                 for individual in population
@@ -219,7 +217,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, ProblemPrompts]):
         """
         selected_population: list[Individual] = []
         # Eliminate invalid individuals
-        if self.problem.problem_type == "black_box":
+        if self.problem.type == "black_box":
             population = [
                 individual
                 for individual in population

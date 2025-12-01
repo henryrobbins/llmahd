@@ -11,7 +11,7 @@ from llamda.ga.hsevo.evolution import Evolution
 from llamda.evaluate import Evaluator
 from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient
-from llamda.problem import ProblemPrompts
+from llamda.problem import Problem
 from llamda.utils import (
     extract_code_from_generator,
     extract_to_hs,
@@ -41,11 +41,11 @@ class HSEvoIndividual(Individual):
     tryHS: bool = False
 
 
-class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
+class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
     def __init__(
         self,
         config: HSEvoConfig,
-        problem: ProblemPrompts,
+        problem: Problem,
         evaluator: Evaluator,
         llm_client: BaseClient,
         output_dir: str,
@@ -76,9 +76,9 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
 
         problems_dir = files("llamda.problems")
 
-        self.output_file = problems_dir / f"{self.problem.problem_name}/gpt.py"
+        self.output_file = problems_dir / f"{self.problem.name}/gpt.py"
 
-        self.evol = Evolution(prompts=self.problem)
+        self.evol = Evolution(problem=self.problem)
 
         self.evaluator = evaluator
 
@@ -232,7 +232,7 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, ProblemPrompts]):
         """
         selected_population = []
         # Eliminate invalid individuals
-        if self.problem.problem_type == "black_box":
+        if self.problem.type == "black_box":
             population = [
                 individual
                 for individual in population

@@ -10,7 +10,7 @@ from llamda.ga.mcts.mcts import MCTS, MCTSNode
 from llamda.evaluate import Evaluator
 from llamda.ga.mcts.evolution_interface import MCTSIndividual, InterfaceEC
 from llamda.llm_client.base import BaseClient
-from llamda.problem import EOHProblemPrompts
+from llamda.problem import EohProblem
 
 
 @dataclass
@@ -29,12 +29,12 @@ class AHDConfig:
     )  # weights for operators default
 
 
-class MCTS_AHD(GeneticAlgorithm[AHDConfig, EOHProblemPrompts]):
+class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
 
     def __init__(
         self,
         config: AHDConfig,
-        problem: EOHProblemPrompts,
+        problem: EohProblem,
         evaluator: Evaluator,
         llm_client: BaseClient,
         output_dir: str,
@@ -163,7 +163,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EOHProblemPrompts]):
 
         self.interface_ec = InterfaceEC(
             m=self.m,
-            prompts=self.problem,
+            problem=self.problem,
             evaluator=self.evaluator,
             llm_client=self.llm_client,
             output_dir=self.output_dir,

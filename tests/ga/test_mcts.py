@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from llamda.llm_client.base import BaseLLMClientConfig
-from llamda.problem import ProblemPrompts, adapt_prompt
+from llamda.problem import Problem, adapt_prompt
 from llamda.ga.mcts.mcts_ahd import AHDConfig
 from llamda.ga.mcts.mcts_ahd import MCTS_AHD as LHH
 
@@ -20,18 +20,17 @@ def test_mcts(problem_name: str, tmp_path: Path) -> None:
         responses_dir=str(RESPONSES_PATH / "mcts"),
     )
 
-    problems_dir = files("llamda.prompts.problems")
-    problem_prompts = ProblemPrompts.load_problem_prompts(
-        path=str(problems_dir / problem_name),
+    problem = Problem.load_problem(
+        path=str(files("llamda.prompts.problems") / problem_name)
     )
-    eoh_problem_prompts = adapt_prompt(problem_prompts)
+    eoh_problem = adapt_prompt(problem)
     evaluator = MockEvaluator(
-        eoh_problem_prompts, evaluation_path=str(EVALUATIONS_PATH / "mcts.json")
+        eoh_problem, evaluation_path=str(EVALUATIONS_PATH / "mcts.json")
     )
 
     lhh = LHH(
         config=AHDConfig(init_size=5, ec_fe_max=15),
-        problem=eoh_problem_prompts,
+        problem=eoh_problem,
         evaluator=evaluator,
         output_dir=str(tmp_path / "test_mcts"),
         llm_client=client,

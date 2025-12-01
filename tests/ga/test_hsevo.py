@@ -6,7 +6,7 @@ import pytest
 
 from llamda.ga.hsevo.hsevo import HSEvo, HSEvoConfig
 from llamda.llm_client.base import BaseLLMClientConfig
-from llamda.problem import ProblemPrompts
+from llamda.problem import Problem
 
 from tests.common import EVALUATIONS_PATH, RESPONSES_PATH
 from tests.mocks import MockClient, MockEvaluator
@@ -20,16 +20,14 @@ def test_hsevo(problem_name: str, tmp_path: Path) -> None:
         config=BaseLLMClientConfig(model="mock", temperature=1.0),
         responses_dir=str(RESPONSES_PATH / "hsevo"),
     )
-    prompts = ProblemPrompts.load_problem_prompts(
-        str(files("llamda.prompts.problems") / problem_name)
-    )
+    problem = Problem.load_problem(str(files("llamda.prompts.problems") / problem_name))
     evaluator = MockEvaluator(
-        prompts, evaluation_path=str(EVALUATIONS_PATH / "hsevo.json")
+        problem, evaluation_path=str(EVALUATIONS_PATH / "hsevo.json")
     )
 
     hsevo = HSEvo(
         config=HSEvoConfig(init_pop_size=5, max_fe=15),
-        problem=prompts,
+        problem=problem,
         evaluator=evaluator,
         llm_client=client,
         output_dir=str(tmp_path / "test_hsevo"),

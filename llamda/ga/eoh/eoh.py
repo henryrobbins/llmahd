@@ -10,7 +10,7 @@ from llamda.ga.eoh.eoh_evolution import EOHOperator
 from llamda.evaluate import Evaluator
 from llamda.ga.eoh.eoh_interface_EC import EOHIndividual, InterfaceEC
 from llamda.llm_client.base import BaseClient
-from llamda.problem import EOHProblemPrompts
+from llamda.problem import EohProblem
 
 # See original EOH adapter implementation in the reevo repository:
 # https://github.com/ai4co/reevo/blob/main/baselines/eoh/eoh_adapter.py
@@ -48,12 +48,12 @@ class EoHConfig:
     exp_continue_path: str = "./results/pops/population_generation_0.json"
 
 
-class EOH(GeneticAlgorithm[EoHConfig, EOHProblemPrompts]):
+class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
 
     def __init__(
         self,
         config: EoHConfig,
-        problem: EOHProblemPrompts,
+        problem: EohProblem,
         evaluator: Evaluator,
         llm_client: BaseClient,
         output_dir: str,
@@ -170,7 +170,7 @@ class EOH(GeneticAlgorithm[EoHConfig, EOHProblemPrompts]):
             pop_size=self.pop_size,
             m=self.m,
             llm_client=self.llm_client,
-            interface_prob=self.problem,
+            problem=self.problem,
             evaluator=self.evaluator,
             output_dir=self.output_dir,
         )

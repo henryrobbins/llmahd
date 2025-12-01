@@ -3,7 +3,7 @@ import logging
 
 from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient
-from llamda.problem import ProblemPrompts
+from llamda.problem import Problem
 from llamda.utils import file_to_string, filter_code
 
 
@@ -33,7 +33,7 @@ class Evolution:
         pop_size: int,
         mutation_rate: float,
         llm_clients: ReEvoLLMClients,
-        prompts: ProblemPrompts,
+        problem: Problem,
     ) -> None:
 
         self.init_pop_size = init_pop_size
@@ -41,7 +41,7 @@ class Evolution:
         self.mutation_rate = mutation_rate
 
         self.llm_clients = llm_clients
-        self.prompts = prompts
+        self.problem = problem
 
         self.reevo_prompts_dir = files("llamda.prompts.ga.reevo")
 
@@ -55,16 +55,16 @@ class Evolution:
         self.user_generator_prompt = file_to_string(
             self.reevo_prompts_dir / "user_generator.txt"
         ).format(
-            func_name=self.prompts.func_name,
-            problem_desc=self.prompts.func_desc,
-            func_desc=self.prompts.func_desc,
+            func_name=self.problem.func_name,
+            problem_desc=self.problem.func_desc,
+            func_desc=self.problem.func_desc,
         )
 
     def seed_population(self, long_term_reflection_str: str) -> list[str]:
 
         seed_prompt = file_to_string(self.reevo_prompts_dir / "seed.txt").format(
-            seed_func=self.prompts.seed_func,
-            func_name=self.prompts.func_name,
+            seed_func=self.problem.seed_func,
+            func_name=self.problem.func_name,
         )
 
         system = self.system_generator_prompt
@@ -121,9 +121,9 @@ class Evolution:
 
         system = self.system_reflector_prompt
         user = user_reflector_st_prompt.format(
-            func_name=self.prompts.func_name,
-            func_desc=self.prompts.func_desc,
-            problem_desc=self.prompts.problem_desc,
+            func_name=self.problem.func_name,
+            func_desc=self.problem.func_desc,
+            problem_desc=self.problem.description,
             worse_code=worse_code,
             better_code=better_code,
         )
@@ -183,7 +183,7 @@ class Evolution:
 
         system = self.system_reflector_prompt
         user = user_reflector_lt_prompt.format(
-            problem_desc=self.prompts.problem_desc,
+            problem_desc=self.problem.description,
             prior_reflection=long_term_reflection_str,
             new_reflection="\n".join(short_term_reflections),
         )
@@ -220,8 +220,8 @@ class Evolution:
         ):
             # Crossover
             system = self.system_generator_prompt
-            func_signature0 = self.prompts.func_signature.format(version=0)
-            func_signature1 = self.prompts.func_signature.format(version=1)
+            func_signature0 = self.problem.func_signature.format(version=0)
+            func_signature1 = self.problem.func_signature.format(version=1)
             user = crossover_prompt.format(
                 user_generator=self.user_generator_prompt,
                 func_signature0=func_signature0,
@@ -229,7 +229,7 @@ class Evolution:
                 worse_code=worse_code,
                 better_code=better_code,
                 reflection=reflection,
-                func_name=self.prompts.func_name,
+                func_name=self.problem.func_name,
             )
             messages = [
                 {"role": "system", "content": system},
@@ -257,13 +257,13 @@ class Evolution:
         mutation_prompt = file_to_string(self.reevo_prompts_dir / "mutation.txt")
 
         system = self.system_generator_prompt
-        func_signature1 = self.prompts.func_signature.format(version=1)
+        func_signature1 = self.problem.func_signature.format(version=1)
         user = mutation_prompt.format(
             user_generator=self.user_generator_prompt,
-            reflection=long_term_reflection_str + self.prompts.external_knowledge,
+            reflection=long_term_reflection_str + self.problem.external_knowledge,
             func_signature1=func_signature1,
             elitist_code=filter_code(elitist.code),
-            func_name=self.prompts.func_name,
+            func_name=self.problem.func_name,
         )
         messages = [
             {"role": "system", "content": system},

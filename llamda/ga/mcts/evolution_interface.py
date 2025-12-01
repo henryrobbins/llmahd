@@ -4,7 +4,7 @@ import random
 import numpy as np
 
 from llamda.evaluate import Evaluator
-from llamda.problem import EOHProblemPrompts, hydrate_individual
+from llamda.problem import EohProblem, hydrate_individual
 from llamda.ga.mcts.evolution import Evolution, MCTSIndividual, MCTSOperator
 from llamda.llm_client.base import BaseClient
 
@@ -14,14 +14,14 @@ class InterfaceEC:
     def __init__(
         self,
         m: int,
-        prompts: EOHProblemPrompts,
+        problem: EohProblem,
         evaluator: Evaluator,
         llm_client: BaseClient,
         output_dir: str,
     ):
         self.m = m
         self.interface_eval = evaluator
-        self.evol = Evolution(llm_client, prompts)
+        self.evol = Evolution(llm_client, problem)
         self.output_dir = output_dir
 
     def check_duplicate_obj(self, population: list[MCTSIndividual], obj: float) -> bool:

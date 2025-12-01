@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from llamda.llm_client.base import BaseLLMClientConfig
-from llamda.problem import ProblemPrompts
+from llamda.problem import Problem
 from llamda.ga.reevo.reevo import ReEvo, ReEvoConfig
 
 from tests.common import EVALUATIONS_PATH, RESPONSES_PATH
@@ -18,16 +18,16 @@ def test_reevo(problem_name: str, tmp_path: Path) -> None:
         config=BaseLLMClientConfig(model="mock", temperature=1.0),
         responses_dir=str(RESPONSES_PATH / "reevo"),
     )
-    prompts = ProblemPrompts.load_problem_prompts(
+    problem = Problem.load_problem(
         path=str(files("llamda.prompts.problems") / problem_name)
     )
     evaluator = MockEvaluator(
-        prompts, evaluation_path=str(EVALUATIONS_PATH / "reevo.json")
+        problem, evaluation_path=str(EVALUATIONS_PATH / "reevo.json")
     )
 
     reevo = ReEvo(
         config=ReEvoConfig(init_pop_size=5, max_fe=15),
-        problem=prompts,
+        problem=problem,
         evaluator=evaluator,
         output_dir=str(tmp_path / "test_reevo"),
         llm_client=client,
