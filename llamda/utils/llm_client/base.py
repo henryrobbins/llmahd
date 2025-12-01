@@ -2,8 +2,6 @@ import os
 import time
 import logging
 import concurrent
-from random import random
-
 from dataclasses import dataclass
 
 
@@ -36,21 +34,16 @@ class BaseClient(object):
         Generate n responses using OpenAI Chat Completions API
         """
         temperature = temperature or self.temperature
-        time.sleep(random())
-        for attempt in range(1000):
-            try:
-                response_cur = self._chat_completion_api(messages, temperature, n)
-            except Exception as e:
-                logger.exception(e)
-                logger.info(f"Attempt {attempt+1} failed with error: {e}")
-                time.sleep(1)
-            else:
-                break
-        if response_cur is None:
-            logger.info("Code terminated due to too many failed attempts!")
-            exit()
 
-        return response_cur
+        for attempt in range(3):
+            try:
+                return self._chat_completion_api(messages, temperature, n)
+            except Exception as e:
+                if attempt == 2:  # Last attempt
+                    logger.error("All 3 attempts failed")
+                    raise
+                logger.warning(f"Attempt {attempt+1} failed with error: {e}")
+                time.sleep(1)
 
     def multi_chat_completion(
         self,
