@@ -1,4 +1,6 @@
-# llamda: LLm AutoMatically Designed Algorithms
+# <img alt="llamda" src="branding/logo.png" height="90">
+
+*llamda: LLm AutoMatically Designed Algorithms*
 
 
 ## Acknowledgments
