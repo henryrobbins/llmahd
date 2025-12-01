@@ -1,5 +1,4 @@
 import copy
-import random
 
 import numpy as np
 
@@ -48,7 +47,7 @@ class InterfaceEC:
                 parents = []
                 code, thought = self.evol.i1()
             case MCTSOperator.E1:
-                real_m = random.randint(2, self.m)
+                real_m = np.random.randint(2, self.m)
                 real_m = min(real_m, len(pop))
                 parents = select_parents_e1(pop, real_m)
                 code, thought = self.evol.e1(parents)
@@ -153,11 +152,15 @@ class InterfaceEC:
 def select_parents(pop: list[MCTSIndividual], m: int) -> list[MCTSIndividual]:
     ranks = [i for i in range(len(pop))]
     probs = [1 / (rank + 1 + len(pop)) for rank in ranks]
-    parents = random.choices(pop, weights=probs, k=m)
+    parents = np.random.choice(
+        np.array(pop), p=probs / np.sum(probs), size=m, replace=True
+    ).tolist()
     return parents
 
 
 def select_parents_e1(pop: list[MCTSIndividual], m: int) -> list[MCTSIndividual]:
     probs = [1 for i in range(len(pop))]
-    parents = random.choices(pop, weights=probs, k=m)
+    parents = np.random.choice(
+        np.array(pop), p=probs / np.sum(probs), size=m, replace=True
+    ).tolist()
     return parents

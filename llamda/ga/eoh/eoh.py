@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 import numpy as np
 import json
-import random
 import heapq
 import time
 
@@ -69,9 +68,6 @@ class EOH(GeneticAlgorithm[EoHConfig, EohProblem]):
 
         # Validation
         assert config.m <= config.pop_size or config.m > 1
-
-        # Set a random seed
-        random.seed(2024)
 
     # add new individual to population
     def add2pop(

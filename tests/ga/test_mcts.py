@@ -3,6 +3,8 @@ import logging
 from pathlib import Path
 import pytest
 
+import numpy as np
+
 from llamda.llm_client.base import BaseLLMClientConfig
 from llamda.problem import Problem, adapt_prompt
 from llamda.ga.mcts.mcts_ahd import AHDConfig
@@ -14,6 +16,7 @@ from tests.mocks import MockClient, MockEvaluator
 
 @pytest.mark.parametrize("problem_name", ["tsp_aco"])
 def test_mcts(problem_name: str, tmp_path: Path) -> None:
+    np.random.seed(2024)
 
     client = MockClient(
         config=BaseLLMClientConfig(model="mock", temperature=1.0),

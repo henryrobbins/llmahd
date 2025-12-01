@@ -1,5 +1,3 @@
-import random
-
 import numpy as np
 
 from llamda.ga.eoh.eoh_evolution import EOHIndividual, EOHOperator, Evolution
@@ -136,5 +134,7 @@ class InterfaceEC:
 def select_parents(pop: list[EOHIndividual], m: int) -> list[EOHIndividual]:
     ranks = [i for i in range(len(pop))]
     probs = [1 / (rank + 1 + len(pop)) for rank in ranks]
-    parents = random.choices(pop, weights=probs, k=m)
+    parents = np.random.choice(
+        np.array(pop), p=probs / np.sum(probs), size=m, replace=True
+    ).tolist()
     return parents

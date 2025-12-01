@@ -1,8 +1,9 @@
 import copy
 import heapq
 import json
-import random
 from dataclasses import dataclass, field
+
+import numpy as np
 
 from llamda.ga.base import GeneticAlgorithm
 from llamda.ga.mcts.evolution import MCTSOperator
@@ -50,9 +51,6 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
 
         self.eval_times = 0  # number of populations
 
-        # Set a random seed
-        random.seed(2024)
-
     # add new individual to population
     def add2pop(
         self, population: list[MCTSIndividual], offspring: MCTSIndividual
@@ -88,9 +86,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         elif option == "e1":
             e1_set = [
                 copy.deepcopy(
-                    children.subtree[
-                        random.choices(range(len(children.subtree)), k=1)[0]
-                    ].raw_info
+                    children.subtree[np.random.randint(len(children.subtree))].raw_info
                 )
                 for children in mcts.root.children
             ]
