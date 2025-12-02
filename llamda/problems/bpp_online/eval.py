@@ -1,11 +1,21 @@
 # Adapted from FunSearch: https://github.com/google-deepmind/funsearch/blob/main/bin_packing/bin_packing.ipynb
 # Licensed under Apache 2.0 (see THIRD-PARTY-LICENSES.txt)
 
+import os
 import numpy as np
 import pickle
 import sys
 
-from gpt import priority_v2 as priority
+sys.path.insert(0, os.path.abspath(os.path.join(__file__, "../../../")))
+
+import gpt
+
+from utils import get_heuristic_name
+
+possible_func_names = ["priority", "priority_v1", "priority_v2"]
+
+heuristic_name = get_heuristic_name(gpt, possible_func_names)
+heuristics = getattr(gpt, heuristic_name)
 
 
 def get_valid_bin_indices(item: float, bins: np.ndarray) -> np.ndarray:
@@ -24,7 +34,7 @@ def online_binpack(
         # Extract bins that have sufficient space to fit item.
         valid_bin_indices = get_valid_bin_indices(item, bins)
         # Score each bin based on heuristic.
-        priorities = priority(item, bins[valid_bin_indices])
+        priorities = heuristics(item, bins[valid_bin_indices])
         # Add item to bin with highest priority.
         best_bin = valid_bin_indices[np.argmax(priorities)]
         bins[best_bin] -= item
