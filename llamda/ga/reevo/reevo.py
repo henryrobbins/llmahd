@@ -16,7 +16,7 @@ from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient
 from llamda.problem import Problem
 from llamda.utils import print_hyperlink
-from llamda.ga.utils import extract_code_from_generator
+from llamda.ga.utils import extract_code_from_generator, population_checkpoint
 
 logger = logging.getLogger("llamda")
 
@@ -99,6 +99,14 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
 
         self.init_population()
 
+    def _logging_context(self) -> dict:
+        return {
+            "method": "ReEvo",
+            "problem_name": self.problem.name,
+            "max_fe": self.config.max_fe,
+            "pop_size": self.config.pop_size,
+        }
+
     def init_population(self) -> None:
         # Evaluate the seed function, and set it as Elite
         code = extract_code_from_generator(self.problem.seed_func).replace("v1", "v2")
@@ -180,16 +188,40 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
         # update elitist
         if self.elitist is None or best_obj < self.elitist.obj:
             self.elitist = population[best_sample_idx]
-            logger.info(f"Iteration {self.iteration}: Elitist: {self.elitist.obj}")
+            logger.info(
+                f"Iteration {self.iteration}: Elitist: {self.elitist.obj}",
+                extra={
+                    "iteration": self.iteration,
+                    "elitist_obj": self.elitist.obj,
+                    **self._logging_context(),
+                },
+            )
 
         best_path = self.best_code_path_overall.replace(".py", ".txt").replace(
             "code", "response"
         )
         logger.info(
-            f"Best obj: {self.best_obj_overall}, Best Code Path: {print_hyperlink(best_path, self.best_code_path_overall)}"
+            f"Best obj: {self.best_obj_overall}, Best Code Path: {print_hyperlink(best_path, self.best_code_path_overall)}",
+            extra={
+                "best_objective": self.best_obj_overall,
+                "best_code_path": self.best_code_path_overall,
+                **self._logging_context(),
+            },
         )
-        logger.info(f"Iteration {self.iteration} finished...")
-        logger.info(f"Function Evals: {self.evaluator.function_evals}")
+        logger.info(
+            f"Iteration {self.iteration} finished...",
+            extra={
+                "iteration": self.iteration,
+                "function_evals": self.evaluator.function_evals,
+                **self._logging_context(),
+            },
+        )
+
+        population_checkpoint(
+            population=self.population,
+            name=f"iteration_{self.iteration}",
+            output_dir=self.output_dir,
+        )
 
         self.iteration += 1
 
@@ -280,19 +312,22 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             file.writelines(self.long_term_reflection_str + "\n")
 
     def evolve(self) -> tuple[str, str]:
-        logger.info("Starting ReEvo evolution")
+        logger.info("Starting ReEvo evolution", extra=self._logging_context())
         while self.evaluator.function_evals < self.config.max_fe:
             logger.debug(
                 "Evolution iteration",
                 extra={
                     "iteration": self.iteration,
                     "function_evals": self.evaluator.function_evals,
-                    "max_fe": self.config.max_fe,
+                    **self._logging_context(),
                 },
             )
             # If all individuals are invalid, stop
             if all([not individual.exec_success for individual in self.population]):
-                logger.error("All individuals are invalid, stopping evolution")
+                logger.error(
+                    "All individuals are invalid, stopping evolution",
+                    extra=self._logging_context(),
+                )
                 raise RuntimeError(
                     f"All individuals are invalid. Please check the stdout files in {os.getcwd()}."
                 )
@@ -304,10 +339,16 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             )  # add elitist to population for selection
             selected_population = self.random_select(population_to_select)
             if selected_population is None:
-                logger.error("Selection failed")
+                logger.error("Selection failed", extra=self._logging_context())
                 raise RuntimeError("Selection failed. Please check the population.")
 
-            logger.debug(f"Selected {len(selected_population)} individuals")
+            logger.debug(
+                f"Selected {len(selected_population)} individuals",
+                extra={
+                    "n_selected": len(selected_population),
+                    **self._logging_context(),
+                },
+            )
 
             # Short-term reflection
             messages_lst, worse_code_lst, better_code_lst = (
@@ -317,7 +358,9 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
                 self.llm_clients.short_reflector_llm.multi_chat_completion(messages_lst)
             )
 
-            logger.debug("Short-term reflection complete")
+            logger.debug(
+                "Short-term reflection complete", extra=self._logging_context()
+            )
 
             # Crossover
             crossover_messages = self.evol.get_crossover_messages(
@@ -335,7 +378,13 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
                 )
             ]
 
-            logger.debug(f"Crossover generated {len(crossed_population)} individuals")
+            logger.debug(
+                f"Crossover generated {len(crossed_population)} individuals",
+                extra={
+                    "n_crossover": len(crossed_population),
+                    **self._logging_context(),
+                },
+            )
 
             # Evaluate
             self.population = self.evaluator.batch_evaluate(
@@ -346,7 +395,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             # Long-term reflection
             self.long_term_reflection(short_term_reflections)
 
-            logger.debug("Long-term reflection complete")
+            logger.debug("Long-term reflection complete", extra=self._logging_context())
 
             # Mutate
             mutation_messages = self.evol.get_mutation_messages(
@@ -365,7 +414,13 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
                 for i, response in enumerate(mutated_response_lst)
             ]
 
-            logger.debug(f"Mutation generated {len(mutated_population)} individuals")
+            logger.debug(
+                f"Mutation generated {len(mutated_population)} individuals",
+                extra={
+                    "n_mutation": len(mutated_population),
+                    **self._logging_context(),
+                },
+            )
 
             # Evaluate
             self.population.extend(
@@ -379,6 +434,7 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             extra={
                 "best_objective": self.best_obj_overall,
                 "function_evals": self.evaluator.function_evals,
+                **self._logging_context(),
             },
         )
 

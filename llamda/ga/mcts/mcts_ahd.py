@@ -14,6 +14,7 @@ from llamda.ga.mcts.mcts_prompts import MCTSOperator
 from llamda.ga.mcts.mcts import MCTS, MCTSNode
 from llamda.evaluate import Evaluator
 from llamda.ga.mcts.evolution_interface import MCTSIndividual, InterfaceEC
+from llamda.ga.utils import population_checkpoint
 from llamda.llm_client.base import BaseClient
 from llamda.problem import EohProblem
 
@@ -56,6 +57,15 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         )
 
         self.eval_times = 0  # number of populations
+
+    def _logging_context(self) -> dict:
+        return {
+            "method": "MCTS-AHD",
+            "problem_name": self.problem.name,
+            "pop_size": self.config.pop_size,
+            "init_size": self.config.init_size,
+            "fe_max": self.config.fe_max,
+        }
 
     # add new individual to population
     def add2pop(
@@ -165,7 +175,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
 
     # run eoh
     def run(self) -> tuple[str, str]:
-        logger.info("Starting MCTS-AHD evolution")
+        logger.info("Starting MCTS-AHD evolution", extra=self._logging_context())
 
         self.interface_ec = InterfaceEC(
             m=self.config.m,
@@ -204,6 +214,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
             extra={
                 "objective": offspring.obj,
                 "eval_times": self.eval_times,
+                **self._logging_context(),
             },
         )
 
@@ -236,10 +247,18 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
             extra={
                 "population_size": len(nodes_set),
                 "eval_times": self.eval_times,
+                **self._logging_context(),
             },
         )
         while self.eval_times < self.config.fe_max:
-            logger.info("MCTS-AHD iteration", extra={"rank_list": mcts.rank_list})
+            logger.info(
+                "MCTS-AHD iteration",
+                extra={
+                    "rank_list": mcts.rank_list,
+                    "eval_times": self.eval_times,
+                    **self._logging_context(),
+                },
+            )
             cur_node = mcts.root
             while len(cur_node.children) > 0 and cur_node.depth < mcts.max_depth:
                 uct_scores = [
@@ -259,24 +278,24 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 cur_node = cur_node.children[selected_pair_idx]
             for i in range(n_op):
                 op = self.config.operators[i]
-                logger.info(f"Iter: {self.eval_times}/{self.config.fe_max} OP: {op}")
+                logger.info(
+                    f"Applying operator [{i + 1} / {n_op}]",
+                    extra={
+                        "operator": op,
+                        "eval_times": self.eval_times,
+                        **self._logging_context(),
+                    },
+                )
                 op_w = self.config.operator_weights[i]
                 for j in range(op_w):
                     nodes_set = self.expand(mcts, cur_node, nodes_set, op)
                 assert len(cur_node.children) == len(cur_node.children_info)
-            # Save population to a file
-            filename = f"{self.output_dir}/population_generation_{self.eval_times}.json"
-            with open(filename, "w") as f:
-                json.dump(
-                    [individual.to_dict() for individual in nodes_set], f, indent=5
-                )
 
-            # Save the best one to a file
-            filename = (
-                f"{self.output_dir}/best_population_generation_{self.eval_times}.json"
+            filename = population_checkpoint(
+                population=nodes_set,
+                name=f"eval_{self.eval_times}",
+                output_dir=self.output_dir,
             )
-            with open(filename, "w") as f:
-                json.dump(nodes_set[0].to_dict(), f, indent=5)
 
         return nodes_set[0].code, filename
 

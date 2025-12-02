@@ -23,15 +23,18 @@ class Evaluator:
         self.timeout = timeout
         self.function_evals = 0
 
+    def _logging_context(self) -> dict:
+        return {
+            "problem_name": self.problem.name,
+            "function_evals": self.function_evals,
+        }
+
     def mark_invalid_individual(self, individual: T, traceback_msg: str) -> T:
         """
         Mark an individual as invalid.
         """
-        logger.warning(
-            "Marking individual as invalid",
-            extra={
-                "traceback_msg": traceback_msg[:200],  # Truncate long messages
-            },
+        logger.debug(
+            "Marking individual as invalid", extra={"individual_name": individual.name}
         )
         individual.exec_success = False
         individual.obj = float("inf")
@@ -45,14 +48,21 @@ class Evaluator:
         logger.info(
             "Starting batch evaluation",
             extra={
+                **self._logging_context(),
                 "population_size": len(population),
-                "function_evals": self.function_evals,
+                "population_names": [ind.name for ind in population],
             },
         )
 
         inner_runs = []
         # Run code to evaluate
         for i, individual in enumerate(population):
+
+            logger.info(
+                f"Evaluating individual [{i}/{len(population)-1}]",
+                extra={**self._logging_context(), "individual_name": individual.name},
+            )
+
             stdout_filepath = (
                 output_dir / "individuals" / individual.name / "stdout.txt"
             )
@@ -60,46 +70,57 @@ class Evaluator:
             self.function_evals += 1
             # Skip if response is invalid
             if individual.code is None:
-                logger.debug("Skipping invalid response")
+                logger.debug(
+                    "There is no code to run for this individual.",
+                    extra={
+                        **self._logging_context(),
+                        "individual_name": individual.name,
+                    },
+                )
                 individual = self.mark_invalid_individual(
                     individual, "Invalid response!"
                 )
                 inner_runs.append(None)
                 continue
 
-            logger.info(f"Running Code {i} / {len(population)-1}")
-
             try:
                 process = self._run_code(individual, stdout_filepath)
                 inner_runs.append(process)
             except Exception as e:  # If code execution fails
-                logger.exception("Code execution error")
+                logger.exception(
+                    "Failed to run code for individual.",
+                    extra={
+                        **self._logging_context(),
+                        "individual_name": individual.name,
+                    },
+                )
                 individual = self.mark_invalid_individual(individual, str(e))
                 inner_runs.append(None)
 
         # Update population with objective values
-        for response_id, inner_run in enumerate(inner_runs):
+        for i, inner_run in enumerate(inner_runs):
             if inner_run is None:  # If code execution fails, skip
                 continue
             try:
                 inner_run.communicate(
                     timeout=self.timeout
                 )  # Wait for code execution to finish
-            except subprocess.TimeoutExpired as e:
-                logger.error(
+            except subprocess.TimeoutExpired:
+                logger.warning(
                     "Timeout expired during code execution",
                     extra={
-                        "response_id": response_id,
+                        **self._logging_context(),
                         "timeout": self.timeout,
+                        "individual_name": individual.name,
                     },
                 )
-                population[response_id] = self.mark_invalid_individual(
-                    population[response_id], str(e)
+                population[i] = self.mark_invalid_individual(
+                    population[i], "Timeout expired during code execution"
                 )
                 inner_run.kill()
                 continue
 
-            individual = population[response_id]
+            individual = population[i]
             with open(stdout_filepath, "r") as f:  # read the stdout file
                 stdout_str = f.read()
             traceback_msg = filter_traceback(stdout_str)
@@ -115,33 +136,35 @@ class Evaluator:
                         else individual.obj
                     )
                     individual.exec_success = True
-                except Exception as e:
-                    logger.error(
+                except Exception:
+                    logger.warning(
                         "Failed to parse objective value",
                         extra={
-                            "response_id": response_id,
-                            "error": str(e),
+                            **self._logging_context(),
+                            "individual_name": individual.name,
                         },
                     )
-                    population[response_id] = self.mark_invalid_individual(
-                        population[response_id], "Invalid std out / objective value!"
+                    population[i] = self.mark_invalid_individual(
+                        population[i], "Invalid std out / objective value!"
                     )
             else:  # Otherwise, also provide execution traceback error feedback
-                logger.debug(
-                    "Individual execution failed with traceback",
+                logger.warning(
+                    "Code evaluation of individual failed with traceback",
                     extra={
-                        "response_id": response_id,
+                        **self._logging_context(),
+                        "individual_name": individual.name,
                         "traceback": traceback_msg,
                     },
                 )
-                population[response_id] = self.mark_invalid_individual(
-                    population[response_id], traceback_msg
+                population[i] = self.mark_invalid_individual(
+                    population[i], traceback_msg
                 )
 
             logger.debug(
                 "Individual evaluated successfully",
                 extra={
-                    "response_id": response_id,
+                    **self._logging_context(),
+                    "individual_name": individual.name,
                     "objective": individual.obj,
                 },
             )
@@ -149,8 +172,13 @@ class Evaluator:
         logger.info(
             "Batch evaluation completed",
             extra={
-                "function_evals": self.function_evals,
-                "valid_individuals": sum(1 for ind in population if ind.exec_success),
+                **self._logging_context(),
+                "successful_individuals": sum(
+                    1 for ind in population if ind.exec_success
+                ),
+                "failed_individuals": sum(
+                    1 for ind in population if not ind.exec_success
+                ),
             },
         )
         return population
@@ -200,12 +228,4 @@ def block_until_running(stdout_filepath: Path, log_status: bool = False) -> None
     while True:
         log = file_to_string(str(stdout_filepath))
         if len(log) > 0:
-            if log_status and "Traceback" in log:
-                logger.warning(
-                    f"Code Run execution error! (see {print_hyperlink(stdout_filepath, 'stdout')}))"
-                )
-            else:
-                logger.info(
-                    f"Code Run successful! (see {print_hyperlink(stdout_filepath, 'stdout')})"
-                )
             break

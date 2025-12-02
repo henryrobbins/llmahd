@@ -16,7 +16,7 @@ from llamda.evaluate import Evaluator
 from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient
 from llamda.problem import Problem
-from llamda.ga.utils import extract_code_from_generator
+from llamda.ga.utils import extract_code_from_generator, population_checkpoint
 
 logger = logging.getLogger("llamda")
 
@@ -99,6 +99,14 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
         ]
 
         self.init_population()
+
+    def _logging_context(self) -> dict:
+        return {
+            "method": "HSEvo",
+            "problem_name": self.problem.name,
+            "max_fe": self.config.max_fe,
+            "pop_size": self.config.pop_size,
+        }
 
     def cal_usage_LLM(
         self,
@@ -206,7 +214,14 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
         # update elitist
         if self.elitist is None or best_obj < self.elitist.obj:
             self.elitist = population[best_sample_idx]
-            logger.info(f"Iteration {self.iteration}: Elitist: {self.elitist.obj}")
+            logger.info(
+                f"Iteration {self.iteration}: Elitist: {self.elitist.obj}",
+                extra={
+                    "iteration": self.iteration,
+                    "elitist_obj": self.elitist.obj,
+                    **self._logging_context(),
+                },
+            )
 
         self.iteration += 1
 
@@ -510,7 +525,6 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
         )
         self.cal_usage_LLM([messages], [str(responses[0])])
 
-        logger.info("LLM Response for HS step: " + str(responses[0]))
         parameter_ranges, func_block = extract_to_hs(responses[0])
         if parameter_ranges is None or func_block is None:
             return None
@@ -564,23 +578,23 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
                 file.writelines("\n".join(map(str, objs + [self.local_sel_hs])) + "\n")
 
     def evolve(self) -> tuple[str, str]:
-        logger.info("Starting HSEvo evolution")
+        logger.info("Starting HSEvo evolution", extra=self._logging_context())
         while self.evaluator.function_evals < self.config.max_fe:
-            logger.debug(
-                "Evolution iteration",
+            logger.info(
+                f"Evolution iteration [{self.evaluator.function_evals}/{self.config.max_fe}]",  # noqa: E501
                 extra={
                     "iteration": self.iteration,
                     "function_evals": self.evaluator.function_evals,
-                    "max_fe": self.config.max_fe,
+                    **self._logging_context(),
                 },
             )
             # If all individuals are invalid, stop
             if all([not individual.exec_success for individual in self.population]):
-                logger.error("All individuals are invalid, stopping evolution")
-                raise RuntimeError(
-                    "All individuals are invalid. "
-                    f"Please check the stdout files in {os.getcwd()}."
+                logger.error(
+                    "All individuals are invalid, stopping evolution",
+                    extra=self._logging_context(),
                 )
+                raise RuntimeError("All individuals are invalid. Stopping evolution.")
             # Select
             population_to_select = (
                 self.population
@@ -589,17 +603,23 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
             )  # add elitist to population for selection
             selected_population = self.random_select(population_to_select)
             if selected_population is None:
-                logger.error("Selection failed")
+                logger.error("Selection failed", extra=self._logging_context())
                 raise RuntimeError("Selection failed. Please check the population.")
 
-            logger.debug(f"Selected {len(selected_population)} individuals")
+            logger.debug(
+                f"Selected {len(selected_population)} individuals",
+                extra={
+                    "n_selected": len(selected_population),
+                    **self._logging_context(),
+                },
+            )
 
             # Reflection
             self.flash_reflection(selected_population)
             self.comprehensive_reflection()
             curr_code_path = f"{self.output_dir}/{self.elitist.name}/code.py"
 
-            logger.debug("Reflection complete")
+            logger.debug("Reflection complete", extra=self._logging_context())
 
             # Crossover
             crossed_population = self.crossover(selected_population)
@@ -611,7 +631,11 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
             self.update_iter()
 
             logger.debug(
-                f"Crossover complete, generated {len(crossed_population)} individuals"
+                f"Crossover complete, generated {len(crossed_population)} individuals",
+                extra={
+                    "n_crossover": len(crossed_population),
+                    **self._logging_context(),
+                },
             )
 
             # Mutate
@@ -624,31 +648,59 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
             self.update_iter()
 
             logger.debug(
-                f"Mutation complete, generated {len(mutated_population)} individuals"
+                f"Mutation complete, generated {len(mutated_population)} individuals",
+                extra={
+                    "n_mutation": len(mutated_population),
+                    **self._logging_context(),
+                },
             )
 
             if curr_code_path != f"{self.output_dir}/{self.elitist.name}/code.py":
                 self.lst_good_reflection.append(self.str_flash_memory["exp"])
-                logger.debug("Elite changed, recording good reflection")
+                logger.debug(
+                    "Elite changed, recording good reflection",
+                    extra=self._logging_context(),
+                )
             else:
                 self.lst_bad_reflection.append(self.str_flash_memory["exp"])
-                logger.debug("Elite unchanged, recording bad reflection")
+                logger.debug(
+                    "Elite unchanged, recording bad reflection",
+                    extra=self._logging_context(),
+                )
 
-            self.save_log_population(self.population, False)
+            population_checkpoint(
+                population=self.population,
+                name=f"iteration_{self.iteration}_pre_hs",
+                output_dir=self.output_dir,
+            )
+
             # Harmony Search
             try_hs_num = 3
             while try_hs_num:
-                logger.debug(f"Attempting harmony search (attempt {4 - try_hs_num}/3)")
+                logger.debug(
+                    f"Attempting harmony search (attempt {4 - try_hs_num}/3)",
+                    extra={"attempt": 4 - try_hs_num, **self._logging_context()},
+                )
                 individual_hs = self.harmony_search()
                 if individual_hs is not None:
                     self.population.extend([individual_hs])
                     # self.update_iter()
-                    self.save_log_population([individual_hs], True)
-                    logger.debug("Harmony search successful")
+
+                    population_checkpoint(
+                        population=self.population,
+                        name=f"iteration_{self.iteration}_post_hs",
+                        output_dir=self.output_dir,
+                    )
+
+                    logger.debug(
+                        "Harmony search successful", extra=self._logging_context()
+                    )
                     break
                 else:
                     try_hs_num -= 1
-                    logger.debug("Harmony search failed, retrying")
+                    logger.debug(
+                        "Harmony search failed, retrying", extra=self._logging_context()
+                    )
             self.update_iter()
 
         logger.info(
@@ -656,6 +708,7 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
             extra={
                 "best_objective": self.best_obj_overall,
                 "function_evals": self.evaluator.function_evals,
+                **self._logging_context(),
             },
         )
 

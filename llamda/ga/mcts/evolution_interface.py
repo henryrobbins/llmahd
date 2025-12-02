@@ -34,6 +34,9 @@ class InterfaceEC:
         self.llm_client = llm_client
         self.output_dir = output_dir
 
+    def _logging_context(self) -> dict:
+        return {"method": "MCTS-AHD", "problem_name": self.problem.name}
+
     def check_duplicate_obj(self, population: list[MCTSIndividual], obj: float) -> bool:
         for ind in population:
             if obj == ind.obj:
@@ -101,7 +104,14 @@ class InterfaceEC:
                     f"Evolution operator [{operator}] has not been implemented!"
                 )
 
-        logger.debug(f"Executing operator {operator.value}")
+        logger.debug(
+            f"Executing MCTS operator {operator.value}",
+            extra={
+                "individual_name": name,
+                "parent_names": [p.name for p in parents],
+                **self._logging_context(),
+            },
+        )
         for _ in range(3):
             response, thought, code = generate_thought_and_code(
                 prompt_content=prompt_content,
@@ -124,7 +134,10 @@ class InterfaceEC:
                     f.write(prompt_content)
                 return parents, offspring
             else:
-                logger.warning("Duplicate code detected, regenerating offspring.")
+                logger.warning(
+                    "Duplicate code detected, regenerating offspring.",
+                    extra={"individual_name": name, **self._logging_context()},
+                )
 
         raise ValueError("Unable to generate unique offspring after multiple attempts.")
 

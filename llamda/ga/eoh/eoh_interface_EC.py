@@ -34,6 +34,9 @@ class InterfaceEC:
         self.problem = problem
         self.output_dir = output_dir
 
+    def _logging_context(self) -> dict:
+        return {"method": "EoH", "problem_name": self.problem.name}
+
     def check_duplicate(self, population: list[EOHIndividual], code: str) -> bool:
         for ind in population:
             if code == ind.code:
@@ -53,9 +56,6 @@ class InterfaceEC:
         self, seeds: list[EOHIndividual]
     ) -> list[EOHIndividual]:
         population = self.interface_eval.batch_evaluate(seeds, Path(self.output_dir))
-        logger.info(
-            "Initialization finished! Get " + str(len(seeds)) + " seed algorithms"
-        )
         return population
 
     def get_offspring(
@@ -83,7 +83,14 @@ class InterfaceEC:
                     f"Evolution operator [{operator}] has not been implemented!"
                 )
 
-        logger.debug(f"Executing operator {operator.value}")
+        logger.debug(
+            f"Executing EoH operator {operator.value}",
+            extra={
+                "individual_name": name,
+                "parent_names": [p.name for p in parents],
+                **self._logging_context(),
+            },
+        )
         for _ in range(3):
             response, thought, code = generate_thought_and_code(
                 prompt_content=prompt_content,
@@ -103,7 +110,10 @@ class InterfaceEC:
                     f.write(prompt_content)
                 return parents, offspring
             else:
-                logger.warning("Duplicate code detected, regenerating offspring.")
+                logger.warning(
+                    "Duplicate code detected, regenerating offspring.",
+                    extra={"individual_name": name, **self._logging_context()},
+                )
 
         raise ValueError("Unable to generate unique offspring after multiple attempts.")
 
@@ -111,7 +121,19 @@ class InterfaceEC:
         self, pop: list[EOHIndividual], operator: EOHOperator, batch_name: str
     ) -> tuple[list[list[EOHIndividual]], list[EOHIndividual]]:
         offspring_list: list[tuple[list[EOHIndividual], EOHIndividual]] = []
+
+        logger.info(
+            f"[EoH] Generating offspring using operator {operator}",
+            extra={"n_offspring": self.pop_size, **self._logging_context()},
+        )
+
         for i in range(self.pop_size):
+
+            logger.info(
+                f"Generating offspring [{i + 1}/{self.pop_size}]",
+                extra={**self._logging_context()},
+            )
+
             p, offspring = self.get_offspring(
                 pop, operator, f"{batch_name}_offspring_{i}"
             )
@@ -123,12 +145,13 @@ class InterfaceEC:
         for i, (_, offspring) in enumerate(offspring_list):
             offspring.obj = np.round(objs[i], 5)
 
-        logger.debug(
-            "Algorithm generation complete",
+        logger.info(
+            "[EoH] Offspring generation completed",
             extra={
                 "operator": str(operator),
                 "n_offspring": len(offspring_list),
                 "objectives": [float(obj) for obj in objs if obj is not None],
+                **self._logging_context(),
             },
         )
 

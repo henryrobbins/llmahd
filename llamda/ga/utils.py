@@ -1,9 +1,10 @@
 # Adapted from ReEvo: https://github.com/ai4co/reevo/blob/main/utils/utils.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
+import os
 import re
+import json
 import logging
-from typing import TypeVar
 
 from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient
@@ -95,7 +96,7 @@ def generate_thought_and_code(
         if len(code_fragments) > 0 and len(thoughts) > 0:
             break
         else:
-            logger.warning(
+            logger.debug(
                 "Failed to extract thought and code from response",
                 extra={
                     "attempt": i + 1,
@@ -141,4 +142,14 @@ def filter_code(code_string: str) -> str:
     return code_string
 
 
-T = TypeVar("T", bound=Individual)
+def population_checkpoint(
+    population: list[Individual], name: str, output_dir: str
+) -> str:
+
+    population_dir = f"{output_dir}/population"
+    os.makedirs(population_dir, exist_ok=True)
+    filename = f"{population_dir}/{name}.json"
+    with open(filename, "w") as f:
+        json.dump([individual.to_dict() for individual in population], f, indent=5)
+
+    return filename

@@ -53,7 +53,7 @@ class HSEvoPrompts:
 
         pre_messages = {"system": system, "user": user}
 
-        logger.info(
+        logger.debug(
             "Initial Population Prompt generated",
             extra={"system": system, "user": user},
         )
@@ -76,7 +76,7 @@ class HSEvoPrompts:
 
         pre_messages = {"system": system, "user": user}
 
-        logger.info(
+        logger.debug(
             "Flash reflection Prompt generated",
             extra={"system": system, "user": user},
         )
@@ -110,7 +110,7 @@ class HSEvoPrompts:
 
         pre_messages = {"system": system, "user": user}
 
-        logger.info(
+        logger.debug(
             "Comprehensive reflection Prompt generated",
             extra={"system": system, "user": user},
         )
@@ -154,7 +154,7 @@ class HSEvoPrompts:
         )
         pre_messages = {"system": system, "user": user}
 
-        logger.info(
+        logger.debug(
             "Crossover Prompt generated", extra={"system": system, "user": user}
         )
 
@@ -188,7 +188,7 @@ class HSEvoPrompts:
 
         pre_messages = {"system": system, "user": user}
 
-        logger.info(
+        logger.debug(
             "Mutation Prompt generated",
             extra={"system": system, "user": user},
         )
@@ -204,7 +204,7 @@ class HSEvoPrompts:
 
         pre_messages = {"system": system, "user": user}
 
-        logger.info(
+        logger.debug(
             "Harmony Search Prompt generated",
             extra={"system": system, "user": user},
         )
