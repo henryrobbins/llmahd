@@ -7,7 +7,7 @@ from typing import Tuple, List, Annotated
 from math import floor
 
 IntArray = npt.NDArray[np.int_]
-FloatArray = npt.NDArray[np.float_]
+FloatArray = npt.NDArray[np.float64]
 
 
 def organize_path(path: IntArray) -> Tuple[int, IntArray]:
