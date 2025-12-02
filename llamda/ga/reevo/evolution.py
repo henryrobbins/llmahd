@@ -1,59 +1,23 @@
 # Adapted from ReEvo: https://github.com/ai4co/reevo/blob/main/reevo.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
-import logging
-
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from llamda.individual import Individual
-from llamda.llm_client.base import BaseClient
 from llamda.problem import Problem
 from llamda.utils import filter_code
-
-logger = logging.getLogger("llamda")
-
-
-class ReEvoLLMClients:
-    def __init__(
-        self,
-        generator_llm: BaseClient,
-        reflector_llm: BaseClient | None = None,
-        short_reflector_llm: BaseClient | None = None,
-        long_reflector_llm: BaseClient | None = None,
-        crossover_llm: BaseClient | None = None,
-        mutation_llm: BaseClient | None = None,
-    ) -> None:
-        self.generator_llm = generator_llm
-        self.reflector_llm = reflector_llm or generator_llm
-        self.short_reflector_llm = short_reflector_llm or self.reflector_llm
-        self.long_reflector_llm = long_reflector_llm or self.reflector_llm
-        self.crossover_llm = crossover_llm or generator_llm
-        self.mutation_llm = mutation_llm or generator_llm
 
 
 class Evolution:
 
-    def __init__(
-        self,
-        init_pop_size: int,
-        pop_size: int,
-        mutation_rate: float,
-        llm_clients: ReEvoLLMClients,
-        problem: Problem,
-    ) -> None:
-
-        self.init_pop_size = init_pop_size
-        self.pop_size = pop_size
-        self.mutation_rate = mutation_rate
-
-        self.llm_clients = llm_clients
+    def __init__(self, problem: Problem) -> None:
         self.problem = problem
-
         self.env = Environment(
-            loader=PackageLoader("llamda.prompts.ga", "reevo"), undefined=StrictUndefined
+            loader=PackageLoader("llamda.prompts.ga", "reevo"),
+            undefined=StrictUndefined,
         )
 
-    def seed_population(self, long_term_reflection_str: str) -> list[str]:
+    def get_seed_population_messages(self, long_term_reflection_str: str) -> list[dict]:
 
         seed_template = self.env.get_template("seed.j2")
         seed_prompt = seed_template.render(
@@ -72,26 +36,14 @@ class Evolution:
         )
 
         user = (
-            user_generator_prompt
-            + "\n"
-            + seed_prompt
-            + "\n"
-            + long_term_reflection_str
+            user_generator_prompt + "\n" + seed_prompt + "\n" + long_term_reflection_str
         )
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ]
 
-        logger.info("Initial Population Prompt", extra={"system": system, "user": user})
-
-        responses = self.llm_clients.generator_llm.multi_chat_completion(
-            [messages],
-            self.init_pop_size,
-            temperature=self.llm_clients.generator_llm.temperature + 0.3,
-        )  # Increase the temperature for diverse initial population
-
-        return responses
+        return messages
 
     def _gen_short_term_reflection_prompt(
         self, ind1: Individual, ind2: Individual
@@ -129,17 +81,13 @@ class Evolution:
             {"role": "user", "content": user},
         ]
 
-        logger.info(
-            "Short-term Reflection Prompt", extra={"system": system, "user": user}
-        )
-
         return message, worse_code, better_code
 
-    def short_term_reflection(
+    def get_short_term_reflection_messages(
         self, population: list[Individual]
-    ) -> tuple[list[str], list[str], list[str]]:
+    ) -> tuple[list[list[dict]], list[str], list[str]]:
         """
-        Short-term reflection before crossovering two individuals.
+        Generate short-term reflection messages for crossovering two individuals.
         """
         messages_lst = []
         worse_code_lst = []
@@ -157,17 +105,13 @@ class Evolution:
             worse_code_lst.append(worse_code)
             better_code_lst.append(better_code)
 
-        # Asynchronously generate responses
-        response_lst = self.llm_clients.short_reflector_llm.multi_chat_completion(
-            messages_lst
-        )
-        return response_lst, worse_code_lst, better_code_lst
+        return messages_lst, worse_code_lst, better_code_lst
 
-    def long_term_reflection(
+    def get_long_term_reflection_messages(
         self, short_term_reflections: list[str], long_term_reflection_str: str
-    ) -> str:
+    ) -> list[dict]:
         """
-        Long-term reflection before mutation.
+        Generate long-term reflection messages.
         """
 
         system_reflector_template = self.env.get_template("system_reflector.j2")
@@ -184,19 +128,11 @@ class Evolution:
             {"role": "user", "content": user},
         ]
 
-        logger.info(
-            "Long-term Reflection Prompt", extra={"system": system, "user": user}
-        )
+        return messages
 
-        response = self.llm_clients.long_reflector_llm.multi_chat_completion(
-            [messages]
-        )[0]
-
-        return response
-
-    def crossover(
-        self, short_term_reflection_tuple: tuple[list[list[dict]], list[str], list[str]]
-    ) -> list[str]:
+    def get_crossover_messages(
+        self, short_term_reflection_tuple: tuple[list[str], list[str], list[str]]
+    ) -> list[list[dict]]:
 
         reflection_content_lst, worse_code_lst, better_code_lst = (
             short_term_reflection_tuple
@@ -235,15 +171,13 @@ class Evolution:
             ]
             messages_lst.append(messages)
 
-            logger.info("Crossover Prompt", extra={"system": system, "user": user})
+        return messages_lst
 
-        # Asynchronously generate responses
-        responses = self.llm_clients.crossover_llm.multi_chat_completion(messages_lst)
-        return responses
-
-    def mutate(self, long_term_reflection_str: str, elitist: Individual) -> list[str]:
+    def get_mutation_messages(
+        self, long_term_reflection_str: str, elitist: Individual
+    ) -> list[dict]:
         """
-        Elitist-based mutation. We mutate the best to generate n_pop new individuals.
+        Generate mutation messages for elitist-based mutation.
         """
 
         system_generator_template = self.env.get_template("system_generator.j2")
@@ -271,10 +205,4 @@ class Evolution:
             {"role": "user", "content": user},
         ]
 
-        logger.info("Mutation Prompt", extra={"system": system, "user": user})
-
-        responses = self.llm_clients.mutation_llm.multi_chat_completion(
-            [messages], int(self.pop_size * self.mutation_rate)
-        )
-
-        return responses
+        return messages

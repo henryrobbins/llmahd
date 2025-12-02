@@ -8,7 +8,7 @@ import os
 from dataclasses import dataclass
 
 from llamda.ga.base import GeneticAlgorithm
-from llamda.ga.reevo.evolution import Evolution, ReEvoLLMClients
+from llamda.ga.reevo.evolution import Evolution
 from llamda.evaluate import Evaluator
 from llamda.individual import Individual
 from llamda.llm_client.base import BaseClient
@@ -16,6 +16,25 @@ from llamda.problem import Problem
 from llamda.utils import extract_code_from_generator, print_hyperlink
 
 logger = logging.getLogger("llamda")
+
+
+class ReEvoLLMClients:
+
+    def __init__(
+        self,
+        generator_llm: BaseClient,
+        reflector_llm: BaseClient | None = None,
+        short_reflector_llm: BaseClient | None = None,
+        long_reflector_llm: BaseClient | None = None,
+        crossover_llm: BaseClient | None = None,
+        mutation_llm: BaseClient | None = None,
+    ) -> None:
+        self.generator_llm = generator_llm
+        self.reflector_llm = reflector_llm or generator_llm
+        self.short_reflector_llm = short_reflector_llm or self.reflector_llm
+        self.long_reflector_llm = long_reflector_llm or self.reflector_llm
+        self.crossover_llm = crossover_llm or generator_llm
+        self.mutation_llm = mutation_llm or generator_llm
 
 
 @dataclass
@@ -53,20 +72,15 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             output_dir=output_dir,
         )
 
-        self.evol = Evolution(
-            init_pop_size=self.config.init_pop_size,
-            pop_size=self.config.pop_size,
-            mutation_rate=self.config.mutation_rate,
-            llm_clients=ReEvoLLMClients(
-                generator_llm=llm_client,
-                reflector_llm=reflector_llm,
-                short_reflector_llm=short_reflector_llm,
-                long_reflector_llm=long_reflector_llm,
-                crossover_llm=crossover_llm,
-                mutation_llm=mutation_llm,
-            ),
-            problem=self.problem,
+        self.llm_clients = ReEvoLLMClients(
+            generator_llm=llm_client,
+            reflector_llm=reflector_llm,
+            short_reflector_llm=short_reflector_llm,
+            long_reflector_llm=long_reflector_llm,
+            crossover_llm=crossover_llm,
+            mutation_llm=mutation_llm,
         )
+        self.evol = Evolution(self.problem)
 
         self.evaluator = evaluator
 
@@ -102,7 +116,12 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
         self.update_iter()
 
         # Generate responses
-        responses = self.evol.seed_population(self.long_term_reflection_str)
+        messages = self.evol.get_seed_population_messages(self.long_term_reflection_str)
+        responses = self.llm_clients.generator_llm.multi_chat_completion(
+            [messages],
+            self.config.init_pop_size,
+            temperature=self.llm_clients.generator_llm.temperature + 0.3,
+        )
 
         population = [
             self.response_to_individual(resp, index)
@@ -249,8 +268,11 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
         """
         Long-term reflection before mutation.
         """
-        self.long_term_reflection_str = self.evol.long_term_reflection(
+        messages = self.evol.get_long_term_reflection_messages(
             short_term_reflections, self.long_term_reflection_str
+        )
+        self.long_term_reflection_str = (
+            self.llm_clients.long_reflector_llm.multi_chat_completion([messages])[0]
         )
 
         # Write reflections to file
@@ -297,14 +319,22 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             logger.debug(f"Selected {len(selected_population)} individuals")
 
             # Short-term reflection
-            short_term_reflection_tuple = self.evol.short_term_reflection(
-                selected_population
-            )  # (response_lst, worse_code_lst, better_code_lst)
+            messages_lst, worse_code_lst, better_code_lst = (
+                self.evol.get_short_term_reflection_messages(selected_population)
+            )
+            short_term_reflections = (
+                self.llm_clients.short_reflector_llm.multi_chat_completion(messages_lst)
+            )
 
             logger.debug("Short-term reflection complete")
 
             # Crossover
-            crossed_response_lst = self.evol.crossover(short_term_reflection_tuple)
+            crossover_messages = self.evol.get_crossover_messages(
+                (short_term_reflections, worse_code_lst, better_code_lst)
+            )
+            crossed_response_lst = self.llm_clients.crossover_llm.multi_chat_completion(
+                crossover_messages
+            )
             crossed_population = [
                 self.response_to_individual(response, response_id)
                 for response_id, response in enumerate(crossed_response_lst)
@@ -317,15 +347,17 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             # Update
             self.update_iter()
             # Long-term reflection
-            self.long_term_reflection(
-                [response for response in short_term_reflection_tuple[0]]
-            )
+            self.long_term_reflection(short_term_reflections)
 
             logger.debug("Long-term reflection complete")
 
             # Mutate
-            mutated_response_lst = self.evol.mutate(
+            mutation_messages = self.evol.get_mutation_messages(
                 self.long_term_reflection_str, self.elitist
+            )
+            mutated_response_lst = self.llm_clients.mutation_llm.multi_chat_completion(
+                [mutation_messages],
+                int(self.config.pop_size * self.config.mutation_rate),
             )
             mutated_population = [
                 self.response_to_individual(response, response_id)

@@ -9,6 +9,7 @@ from llamda.ga.eoh.eoh_evolution import EOHIndividual, EOHOperator, Evolution
 from llamda.evaluate import Evaluator
 from llamda.problem import EohProblem, hydrate_individual
 from llamda.llm_client.base import BaseClient
+from llamda.utils import parse_response
 
 logger = logging.getLogger("llamda")
 
@@ -26,7 +27,8 @@ class InterfaceEC:
         self.pop_size = pop_size
         self.m = m
         self.interface_eval = evaluator
-        self.evol = Evolution(llm_client=llm_client, problem=problem)
+        self.evol = Evolution(problem=problem)
+        self.llm_client = llm_client
         self.output_dir = output_dir
 
     def check_duplicate(self, population: list[EOHIndividual], code: str) -> bool:
@@ -34,6 +36,39 @@ class InterfaceEC:
             if code == ind.code:
                 return True
         return False
+
+    def _chat_completion(self, prompt_content: str) -> str:
+        response = self.llm_client.chat_completion(
+            1, [{"role": "user", "content": prompt_content}]
+        )
+        response_content = response[0].message.content
+        return response_content
+
+    def _call_llm_and_parse(self, prompt_content: str) -> tuple[str, str]:
+        """Call LLM with prompt and parse response into algorithm and code."""
+        response_content = self._chat_completion(prompt_content)
+        algorithms, code = parse_response(response_content)
+
+        n_retry = 1
+        while len(algorithms) == 0 or len(code) == 0:
+            logger.warning(f"Algorithm or code not identified, retrying ({n_retry}/3)")
+            response_content = self._chat_completion(prompt_content)
+            algorithms, code = parse_response(response_content)
+
+            if n_retry > 3:
+                logger.warning("Max retries reached, algorithm generation failed")
+                break
+            n_retry += 1
+
+        algorithm = algorithms[0]
+        code_all = code[0] + " " + ", ".join(s for s in self.evol.problem.func_outputs)
+
+        logger.debug(
+            "Algorithm generated successfully",
+            extra={"algorithm": algorithm, "code": len(code)},
+        )
+
+        return code_all, algorithm
 
     def population_generation(self) -> list[EOHIndividual]:
         n_create = 2
@@ -66,23 +101,26 @@ class InterfaceEC:
         match operator:
             case EOHOperator.I1:
                 parents = []
-                code, algorithm = self.evol.i1()
+                prompt_content = self.evol.i1()
             case EOHOperator.E1:
                 parents = select_parents(pop, self.m)
-                code, algorithm = self.evol.e1(parents)
+                prompt_content = self.evol.e1(parents)
             case EOHOperator.E2:
                 parents = select_parents(pop, self.m)
-                code, algorithm = self.evol.e2(parents)
+                prompt_content = self.evol.e2(parents)
             case EOHOperator.M1:
                 parents = select_parents(pop, 1)
-                code, algorithm = self.evol.m1(parents[0])
+                prompt_content = self.evol.m1(parents[0])
             case EOHOperator.M2:
                 parents = select_parents(pop, 1)
-                code, algorithm = self.evol.m2(parents[0])
+                prompt_content = self.evol.m2(parents[0])
             case _:
                 raise ValueError(
                     f"Evolution operator [{operator}] has not been implemented!"
                 )
+
+        logger.debug(f"Executing operator {operator.value}")
+        code, algorithm = self._call_llm_and_parse(prompt_content)
 
         offspring = EOHIndividual(
             algorithm=algorithm,
