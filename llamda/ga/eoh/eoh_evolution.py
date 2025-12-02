@@ -50,50 +50,33 @@ class Evolution:
 
         self.llm_client = llm_client
 
+    def _get_problem_context(self) -> dict:
+        """Get the common problem context for all templates."""
+        return {
+            "description": self.problem.description,
+            "func_name": self.problem.func_name,
+            "func_inputs": self.problem.func_inputs,
+            "func_outputs": self.problem.func_outputs,
+            "inout_info": self.problem.inout_info,
+            "other_info": self.problem.other_info,
+        }
+
     def get_prompt_i1(self) -> str:
         template = self.env.get_template(f"{EOHOperator.I1.value}.j2")
-        return template.render(
-            description=self.problem.description,
-            func_name=self.problem.func_name,
-            func_inputs=self.problem.func_inputs,
-            func_outputs=self.problem.func_outputs,
-            inout_info=self.problem.inout_info,
-            other_info=self.problem.other_info,
-        )
+        return template.render(**self._get_problem_context())
 
     def get_prompt_e1(self, indivs: list[EOHIndividual]) -> str:
         template = self.env.get_template(f"{EOHOperator.E1.value}.j2")
-        return template.render(
-            description=self.problem.description,
-            func_name=self.problem.func_name,
-            func_inputs=self.problem.func_inputs,
-            func_outputs=self.problem.func_outputs,
-            inout_info=self.problem.inout_info,
-            other_info=self.problem.other_info,
-            indivs=indivs,
-        )
+        return template.render(**self._get_problem_context(), indivs=indivs)
 
     def get_prompt_e2(self, indivs: list[EOHIndividual]) -> str:
         template = self.env.get_template(f"{EOHOperator.E2.value}.j2")
-        return template.render(
-            description=self.problem.description,
-            func_name=self.problem.func_name,
-            func_inputs=self.problem.func_inputs,
-            func_outputs=self.problem.func_outputs,
-            inout_info=self.problem.inout_info,
-            other_info=self.problem.other_info,
-            indivs=indivs,
-        )
+        return template.render(**self._get_problem_context(), indivs=indivs)
 
     def get_prompt_m1(self, indiv1: EOHIndividual) -> str:
         template = self.env.get_template(f"{EOHOperator.M1.value}.j2")
         return template.render(
-            description=self.problem.description,
-            func_name=self.problem.func_name,
-            func_inputs=self.problem.func_inputs,
-            func_outputs=self.problem.func_outputs,
-            inout_info=self.problem.inout_info,
-            other_info=self.problem.other_info,
+            **self._get_problem_context(),
             algorithm=indiv1.algorithm,
             code=indiv1.code,
         )
@@ -101,12 +84,7 @@ class Evolution:
     def get_prompt_m2(self, indiv1: EOHIndividual) -> str:
         template = self.env.get_template(f"{EOHOperator.M2.value}.j2")
         return template.render(
-            description=self.problem.description,
-            func_name=self.problem.func_name,
-            func_inputs=self.problem.func_inputs,
-            func_outputs=self.problem.func_outputs,
-            inout_info=self.problem.inout_info,
-            other_info=self.problem.other_info,
+            **self._get_problem_context(),
             algorithm=indiv1.algorithm,
             code=indiv1.code,
         )
