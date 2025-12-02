@@ -15,7 +15,7 @@ logger = logging.getLogger("llamda")
 class ProblemName(Enum):
     BPP_OFFLINE_ACO = "bpp_offline_aco"
     BPP_ONLINE = "bpp_online"
-    CRVP_ACO = "crvp_aco"
+    CVRP_ACO = "cvrp_aco"
     MKP_ACO = "mkp_aco"
     TSP_ACO = "tsp_aco"
     TSP_CONSTRUCTIVE = "tsp_constructive"
