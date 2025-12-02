@@ -97,8 +97,6 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
         self.best_code_overall = None
         self.best_code_path_overall = None
 
-        self.init_population()
-
     def _logging_context(self) -> dict:
         return {
             "method": "ReEvo",
@@ -312,7 +310,18 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
             file.writelines(self.long_term_reflection_str + "\n")
 
     def evolve(self) -> tuple[str, str]:
+
         logger.info("Starting ReEvo evolution", extra=self._logging_context())
+
+        self.init_population()
+        logger.info(
+            "Initial population created",
+            extra={
+                "population_size": len(self.population),
+                **self._logging_context(),
+            },
+        )
+
         while self.evaluator.function_evals < self.config.max_fe:
             logger.debug(
                 "Evolution iteration",

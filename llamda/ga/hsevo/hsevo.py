@@ -98,8 +98,6 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
             "You are Ada Lovelace, computer programming pioneer.",
         ]
 
-        self.init_population()
-
     def _logging_context(self) -> dict:
         return {
             "method": "HSEvo",
@@ -578,7 +576,18 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
                 file.writelines("\n".join(map(str, objs + [self.local_sel_hs])) + "\n")
 
     def evolve(self) -> tuple[str, str]:
+
         logger.info("Starting HSEvo evolution", extra=self._logging_context())
+
+        self.init_population()
+        logger.info(
+            "Initial population created",
+            extra={
+                "population_size": len(self.population),
+                **self._logging_context(),
+            },
+        )
+
         while self.evaluator.function_evals < self.config.max_fe:
             logger.info(
                 f"Evolution iteration [{self.evaluator.function_evals}/{self.config.max_fe}]",  # noqa: E501
