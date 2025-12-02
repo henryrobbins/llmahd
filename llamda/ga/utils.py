@@ -2,9 +2,21 @@
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
 import re
+import logging
 from typing import TypeVar
 
 from llamda.individual import Individual
+from llamda.llm_client.base import BaseClient
+
+logger = logging.getLogger("llamda")
+
+
+class LLMParsingError(Exception):
+    """Raised when unable to parse expected content from LLM response."""
+
+    def __init__(self, message: str, response: str):
+        super().__init__(message)
+        self.response = response
 
 
 # reevo + hsevo
@@ -43,23 +55,70 @@ def extract_code_from_generator(content):
     return code_string
 
 
-# eoh + mcts
-def parse_response(response: str) -> tuple[list[str], list[str]]:
-    # TODO: Why did MCTS make this change?
-    # algorithm = re.search(r"\{(.*?)\}", response, re.DOTALL).group(1)
-    algorithm = re.findall(r"\{(.*)\}", response, re.DOTALL)
-    if len(algorithm) == 0:
+# EoH + MCTS-AHD
+def _extract_thoughts_and_code_fragments(response: str) -> tuple[list[str], list[str]]:
+    thoughts = re.findall(r"\{(.*)\}", response, re.DOTALL)
+    if len(thoughts) == 0:
         if "python" in response:
-            algorithm = re.findall(r"^.*?(?=python)", response, re.DOTALL)
+            thoughts = re.findall(r"^.*?(?=python)", response, re.DOTALL)
         elif "import" in response:
-            algorithm = re.findall(r"^.*?(?=import)", response, re.DOTALL)
+            thoughts = re.findall(r"^.*?(?=import)", response, re.DOTALL)
         else:
-            algorithm = re.findall(r"^.*?(?=def)", response, re.DOTALL)
+            thoughts = re.findall(r"^.*?(?=def)", response, re.DOTALL)
 
-    code = re.findall(r"import.*return", response, re.DOTALL)
-    if len(code) == 0:
-        code = re.findall(r"def.*return", response, re.DOTALL)
-    return algorithm, code
+    code_fragments = re.findall(r"import.*return", response, re.DOTALL)
+    if len(code_fragments) == 0:
+        code_fragments = re.findall(r"def.*return", response, re.DOTALL)
+    return thoughts, code_fragments
+
+
+def _chat_completion(llm_client: BaseClient, prompt_content: str) -> str:
+    response = llm_client.chat_completion(
+        1, [{"role": "user", "content": prompt_content}]
+    )
+    response_content = response[0].message.content
+    return response_content
+
+
+def generate_thought_and_code(
+    prompt_content: str, func_outputs: list[str], llm_client: BaseClient
+) -> tuple[str, str, str]:
+    """Call LLM with prompt and parse response into thought and code."""
+
+    response = ""
+    thoughts: list[str] = []
+    code_fragments: list[str] = []
+
+    for i in range(3):
+        response = _chat_completion(llm_client, prompt_content)
+        thoughts, code_fragments = _extract_thoughts_and_code_fragments(response)
+        if len(code_fragments) > 0 and len(thoughts) > 0:
+            break
+        else:
+            logger.warning(
+                "Failed to extract thought and code from response",
+                extra={
+                    "attempt": i + 1,
+                    "response": response,
+                    "thoughts": thoughts,
+                    "code_fragments": code_fragments,
+                },
+            )
+
+    if len(code_fragments) == 0 or len(thoughts) == 0:
+        raise LLMParsingError(
+            "Unable to extract thought and code from LLM response", response
+        )
+
+    thought = thoughts[0]  # Take the first thought
+    code = code_fragments[0] + " " + ", ".join(s for s in func_outputs)
+
+    logger.debug(
+        "Thought and code successfully extracted from LLM response",
+        extra={"thought": thought, "code": code},
+    )
+
+    return response, thought, code
 
 
 def filter_code(code_string: str) -> str:

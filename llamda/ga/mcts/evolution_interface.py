@@ -10,7 +10,7 @@ from llamda.evaluate import Evaluator
 from llamda.problem import EohProblem
 from llamda.ga.mcts.mcts_prompts import MCTSPrompts, MCTSIndividual, MCTSOperator
 from llamda.llm_client.base import BaseClient
-from llamda.ga.utils import parse_response, hydrate_individual
+from llamda.ga.utils import generate_thought_and_code, hydrate_individual
 
 logger = logging.getLogger("llamda")
 
@@ -28,6 +28,7 @@ class InterfaceEC:
         self.m = m
         self.interface_eval = evaluator
         self.evol = MCTSPrompts(problem)
+        self.problem = problem
         self.llm_client = llm_client
         self.output_dir = output_dir
 
@@ -43,41 +44,6 @@ class InterfaceEC:
                 return True
         return False
 
-    def _chat_completion(self, prompt_content: str) -> str:
-        response = self.llm_client.chat_completion(
-            1, [{"role": "user", "content": prompt_content}]
-        )
-        response_content = response[0].message.content
-        return response_content
-
-    def _call_llm_and_parse(self, prompt_content: str) -> tuple[str, str]:
-        """Call LLM with prompt and parse response into code and thought."""
-        response_content = self._chat_completion(prompt_content)
-        algorithms, code = parse_response(response_content)
-
-        n_retry = 1
-        while len(algorithms) == 0 or len(code) == 0:
-            logger.warning(f"Algorithm or code not identified, retrying ({n_retry}/3)")
-
-            response_content = self._chat_completion(prompt_content)
-            algorithms, code = parse_response(response_content)
-
-            if n_retry > 3:
-                logger.warning("Max retries reached, algorithm generation failed")
-                break
-            n_retry += 1
-
-        # TODO: I believe this resolves a bug in original implementation
-        thought = algorithms[0]
-        code_all = code[0] + " " + ", ".join(s for s in self.evol.problem.func_outputs)
-
-        logger.debug(
-            "Algorithm generated successfully",
-            extra={"algorithm": thought, "code": code},
-        )
-
-        return code_all, thought
-
     def _get_thought(self, prompt_content: str) -> str:
         """Call LLM with refine prompt to get algorithm description."""
         response = self.llm_client.chat_completion(
@@ -92,7 +58,7 @@ class InterfaceEC:
         prompt_content = self.evol.refine(code, thought)
         return self._get_thought(prompt_content)
 
-    def _get_alg(
+    def get_offspring(
         self,
         pop: list[MCTSIndividual],
         operator: MCTSOperator,
@@ -132,40 +98,23 @@ class InterfaceEC:
                     f"Evolution operator [{operator}] has not been implemented!"
                 )
 
-        code, thought = self._call_llm_and_parse(prompt_content)
-        algorithm = self._post_thought(code, thought)
+        logger.debug(f"Executing operator {operator.value}")
+        for _ in range(3):
+            response, thought, code = generate_thought_and_code(
+                prompt_content=prompt_content,
+                func_outputs=self.problem.func_outputs,
+                llm_client=self.llm_client,
+            )
+            algorithm = self._post_thought(code, thought)
+            if not self.check_duplicate(pop, code):
+                offspring = MCTSIndividual(
+                    algorithm=algorithm, thought=thought, code=code
+                )
+                return parents, offspring
+            else:
+                logger.warning("Duplicate code detected, regenerating offspring.")
 
-        offspring = MCTSIndividual(
-            algorithm=algorithm,
-            thought=thought,
-            code=code,
-            obj=None,
-        )
-
-        return parents, offspring
-
-    def get_offspring(
-        self,
-        pop: list[MCTSIndividual],
-        operator: MCTSOperator,
-        father: MCTSIndividual | None = None,
-    ) -> tuple[list[MCTSIndividual], MCTSIndividual]:
-        while True:
-            try:
-                p, offspring = self._get_alg(pop, operator, father=father)
-                code = offspring.code
-                n_retry = 1
-                while code is None or self.check_duplicate(pop, code):
-                    n_retry += 1
-                    logger.warning("duplicated code, wait 1 second and retrying ... ")
-                    p, offspring = self._get_alg(pop, operator, father=father)
-                    code = offspring.code
-                    if n_retry > 1:
-                        break
-                break
-            except Exception as e:
-                logger.error(e)
-        return p, offspring
+        raise ValueError("Unable to generate unique offspring after multiple attempts.")
 
     def get_algorithm(
         self, pop: list[MCTSIndividual], operator: MCTSOperator
