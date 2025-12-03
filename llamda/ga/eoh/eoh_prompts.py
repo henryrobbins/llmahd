@@ -2,7 +2,7 @@
 # Originally from EoH: https://github.com/FeiLiu36/EoH/blob/main/eoh/src/eoh/methods/eoh/eoh_evolution.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
-from enum import StrEnum
+from enum import Enum
 from dataclasses import dataclass
 
 from jinja2 import Environment, PackageLoader, StrictUndefined
@@ -16,7 +16,7 @@ class EOHIndividual(Individual):
     algorithm: str | None = None
 
 
-class EOHOperator(StrEnum):
+class EOHOperator(str, Enum):
     I1 = "i1"
     E1 = "e1"
     E2 = "e2"

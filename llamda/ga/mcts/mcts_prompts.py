@@ -1,7 +1,7 @@
 # Adapted from MCTS-AHD: https://github.com/zz1358m/MCTS-AHD-master/blob/main/source/evolution.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
-from enum import StrEnum
+from enum import Enum
 from dataclasses import dataclass
 
 from jinja2 import Environment, PackageLoader, StrictUndefined
@@ -16,7 +16,7 @@ class MCTSIndividual(Individual):
     thought: str | None = None
 
 
-class MCTSOperator(StrEnum):
+class MCTSOperator(str, Enum):
     I1 = "i1"
     E1 = "e1"
     E2 = "e2"
