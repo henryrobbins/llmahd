@@ -117,8 +117,8 @@ class Evaluator:
                         "individual_name": individual.name,
                     },
                 )
-                population[i] = self.mark_invalid_individual(
-                    population[i], "Timeout expired during code execution"
+                individual = self.mark_invalid_individual(
+                    individual, "Timeout expired during code execution"
                 )
                 inner_run.kill()
                 continue
