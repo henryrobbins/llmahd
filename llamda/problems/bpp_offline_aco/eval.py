@@ -1,24 +1,18 @@
 # Adapted from ReEvo: https://github.com/ai4co/reevo/blob/main/problems/bpp_offline_aco/eval.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
-from aco import ACO
-import numpy as np
-import logging
-from gen_inst import BPPInstance, load_dataset, dataset_conf
-import sys
 import os
-import sys
+import logging
+import argparse
 
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "../../../")))
+import numpy as np
 
-import gpt
-from utils import get_heuristic_name
+from aco import ACO  # type: ignore
+from gen_inst import BPPInstance, load_dataset, dataset_conf  # type: ignore
+from llamda.utils import load_heuristic_from_code
 
 
-possible_func_names = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
-
-heuristic_name = get_heuristic_name(gpt, possible_func_names)
-heuristics = getattr(gpt, heuristic_name)
+POSSIBLE_FUNC_NAMES = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
 
 
 N_ITERATIONS = 15
@@ -26,7 +20,7 @@ N_ANTS = 20
 SAMPLE_COUNT = 200
 
 
-def solve(inst: BPPInstance, mode="sample"):
+def solve(inst: BPPInstance, heuristics, mode="sample"):
     heu = heuristics(inst.demands.copy(), inst.capacity)  # normalized in ACO
     assert tuple(heu.shape) == (inst.n, inst.n)
     assert 0 < heu.max() < np.inf
@@ -45,16 +39,24 @@ def solve(inst: BPPInstance, mode="sample"):
 
 
 if __name__ == "__main__":
-    import sys
-    import os
 
     print("[*] Running ...")
 
-    problem_size = int(sys.argv[1])
-    mood = sys.argv[2]
-    method = sys.argv[3] if len(sys.argv) >= 4 else "aco"
-    assert mood in ["train", "val"]
-    assert method in ["sample", "aco"]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem_size", type=int)
+    parser.add_argument("mood", type=str, choices=["train", "val"])
+    parser.add_argument(
+        "method", type=str, nargs="?", default="aco", choices=["sample", "aco"]
+    )
+    parser.add_argument(
+        "--code-path", type=str, required=True, help="Path to individual's code file"
+    )
+    args = parser.parse_args()
+
+    problem_size = args.problem_size
+    mood = args.mood
+    method = args.method
+    heuristics = load_heuristic_from_code(args.code_path, POSSIBLE_FUNC_NAMES)
 
     basepath = os.path.dirname(__file__)
     # automacially generate dataset if nonexists
@@ -76,7 +78,7 @@ if __name__ == "__main__":
 
         objs = []
         for i, instance in enumerate(dataset):
-            obj = solve(instance, mode=method)
+            obj = solve(instance, heuristics, mode=method)
             print(f"[*] Instance {i}: {obj}")
             objs.append(obj)
 
@@ -94,7 +96,7 @@ if __name__ == "__main__":
 
             objs = []
             for i, instance in enumerate(dataset):
-                obj = solve(instance, mode=method)
+                obj = solve(instance, heuristics, mode=method)
                 objs.append(obj)
 
             print(f"[*] Average for {problem_size}: {np.mean(objs)}")

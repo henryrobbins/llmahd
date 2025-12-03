@@ -101,7 +101,6 @@ class InterfaceEC:
                 offspring = EOHIndividual(name=name, algorithm=thought, code=code)
                 individual_dir = f"{self.output_dir}/individuals/{offspring.name}"
                 os.makedirs(individual_dir, exist_ok=True)
-                offspring.write_code_to_file(f"{individual_dir}/code.py")
                 response_filepath = f"{individual_dir}/response.txt"
                 with open(response_filepath, "w") as f:
                     f.write(response)

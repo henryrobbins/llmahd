@@ -189,7 +189,6 @@ class HSEvo(GeneticAlgorithm[HSEvoConfig, Problem]):
         code = extract_code_from_generator(response)
 
         individual = HSEvoIndividual(name=name, code=code)
-        individual.write_code_to_file(f"{individual_dir}/code.py")
 
         return individual
 

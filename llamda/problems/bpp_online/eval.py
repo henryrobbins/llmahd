@@ -2,20 +2,15 @@
 # Licensed under Apache 2.0 (see THIRD-PARTY-LICENSES.txt)
 
 import os
-import numpy as np
+import argparse
 import pickle
-import sys
 
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "../../../")))
+import numpy as np
 
-import gpt
+from llamda.utils import load_heuristic_from_code
 
-from utils import get_heuristic_name
 
-possible_func_names = ["priority", "priority_v1", "priority_v2"]
-
-heuristic_name = get_heuristic_name(gpt, possible_func_names)
-heuristics = getattr(gpt, heuristic_name)
+POSSIBLE_FUNC_NAMES = ["priority", "priority_v1", "priority_v2"]
 
 
 def get_valid_bin_indices(item: float, bins: np.ndarray) -> np.ndarray:
@@ -24,7 +19,7 @@ def get_valid_bin_indices(item: float, bins: np.ndarray) -> np.ndarray:
 
 
 def online_binpack(
-    items: tuple[float, ...], bins: np.ndarray
+    items: tuple[float, ...], bins: np.ndarray, heuristics
 ) -> tuple[list[list[float, ...], ...], np.ndarray]:
     """Performs online binpacking of `items` into `bins`."""
     # Track which items are added to each bin.
@@ -44,7 +39,7 @@ def online_binpack(
     return packing, bins
 
 
-def evaluate(instances: dict) -> float:
+def evaluate(instances: dict, heuristics) -> float:
     """Evaluate heuristic function on a set of online binpacking instances."""
     # List storing number of bins used for each instance.
     num_bins = []
@@ -61,7 +56,7 @@ def evaluate(instances: dict) -> float:
         bins = np.array([capacity for _ in range(instance["num_items"])])
         # Pack items into bins and return remaining capacity in bins_packed, which
         # has shape (num_items,).
-        _, bins_packed = online_binpack(items.astype(float), bins)
+        _, bins_packed = online_binpack(items.astype(float), bins, heuristics)
         # If remaining capacity in a bin is equal to initial capacity, then it is
         # unused. Count number of used bins.
         num_bins.append((bins_packed != capacity).sum())
@@ -98,14 +93,21 @@ def is_valid_packing(
 
 
 if __name__ == "__main__":
-    import os
 
     print("[*] Running ...")
 
-    problem_size = int(sys.argv[1])
-    mood = sys.argv[2]
-    assert mood in ["train", "val"]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem_size", type=int)
+    parser.add_argument("mood", type=str, choices=["train", "val"])
+    parser.add_argument(
+        "--code-path", type=str, required=True, help="Path to individual's code file"
+    )
+    args = parser.parse_args()
+
+    problem_size = args.problem_size
+    mood = args.mood
     assert problem_size in [5000, -1]
+    heuristics = load_heuristic_from_code(args.code_path, POSSIBLE_FUNC_NAMES)
 
     file_name = f"weibull_5k_{mood}.pickle"
     basepath = os.path.dirname(__file__)
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     dataset = pickle.load(open(dataset_path, "rb"))
 
     # Evaluate heuristic function on dataset
-    avg_num_bins = -evaluate(dataset)
+    avg_num_bins = -evaluate(dataset, heuristics)
     l1_bound = dataset["l1_bound"]
     excess = (avg_num_bins - l1_bound) / l1_bound
     print(file_name)

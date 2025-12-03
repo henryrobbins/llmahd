@@ -1,31 +1,24 @@
 # Adapted from ReEvo: https://github.com/ai4co/reevo/blob/main/problems/tsp_aco/eval.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
-from os import path
-from aco import ACO
-import sys
-import numpy as np
-from scipy.spatial import distance_matrix
+import argparse
 import logging
-import os
-import sys
+from os import path
 
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "../../../")))
+import numpy as np
+from aco import ACO  # type: ignore
+from scipy.spatial import distance_matrix
 
-import gpt
-from utils import get_heuristic_name
+from llamda.utils import load_heuristic_from_code
 
 
-possible_func_names = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
-
-heuristic_name = get_heuristic_name(gpt, possible_func_names)
-heuristics = getattr(gpt, heuristic_name)
+POSSIBLE_FUNC_NAMES = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
 
 N_ITERATIONS = 100
 N_ANTS = 30
 
 
-def solve(node_pos):
+def solve(node_pos, heuristics):
     dist_mat = distance_matrix(node_pos, node_pos)
     dist_mat[np.diag_indices_from(dist_mat)] = 1  # set diagonal to a large number
     heu = heuristics(dist_mat.copy()) + 1e-9
@@ -36,11 +29,20 @@ def solve(node_pos):
 
 
 if __name__ == "__main__":
+
     print("[*] Running ...")
 
-    problem_size = int(sys.argv[1])
-    mood = sys.argv[2]
-    assert mood in ["train", "val"]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem_size", type=int)
+    parser.add_argument("mood", type=str, choices=["train", "val"])
+    parser.add_argument(
+        "--code-path", type=str, required=True, help="Path to individual's code file"
+    )
+    args = parser.parse_args()
+
+    problem_size = args.problem_size
+    mood = args.mood
+    heuristics = load_heuristic_from_code(args.code_path, POSSIBLE_FUNC_NAMES)
 
     basepath = path.join(path.dirname(__file__), "dataset")
     if not path.isfile(path.join(basepath, "train50_dataset.npy")):
@@ -56,7 +58,7 @@ if __name__ == "__main__":
 
         objs = []
         for i, node_pos in enumerate(node_positions):
-            obj = solve(node_pos)
+            obj = solve(node_pos, heuristics)
             print(f"[*] Instance {i}: {obj}")
             objs.append(obj)
 
@@ -71,6 +73,6 @@ if __name__ == "__main__":
             n_instances = node_positions.shape[0]
             objs = []
             for i, node_pos in enumerate(node_positions):
-                obj = solve(node_pos)
+                obj = solve(node_pos, heuristics)
                 objs.append(obj.item())
             print(f"[*] Average for {problem_size}: {np.mean(objs)}")

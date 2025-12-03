@@ -2,33 +2,25 @@
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
 import os
-from aco import ACO
-import sys
-import numpy as np
-from scipy.spatial import distance_matrix
-import logging
+import argparse
 import inspect
-import sys
-import os
-import sys
+import logging
 
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "../../../")))
+import numpy as np
+from aco import ACO  # type: ignore
+from scipy.spatial import distance_matrix
 
-import gpt
-from utils import get_heuristic_name
+from llamda.utils import load_heuristic_from_code
 
 
-possible_func_names = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
-
-heuristic_name = get_heuristic_name(gpt, possible_func_names)
-heuristics = getattr(gpt, heuristic_name)
+POSSIBLE_FUNC_NAMES = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
 
 N_ITERATIONS = 100
 N_ANTS = 30
 CAPACITY = 50
 
 
-def solve(node_pos, demand):
+def solve(node_pos, demand, heuristics):
     dist_mat = distance_matrix(node_pos, node_pos)
     dist_mat[np.diag_indices_from(dist_mat)] = 1  # set diagonal to a large number
     if len(inspect.getfullargspec(heuristics).args) == 4:
@@ -44,11 +36,20 @@ def solve(node_pos, demand):
 
 
 if __name__ == "__main__":
+
     print("[*] Running ...")
 
-    problem_size = int(sys.argv[1])
-    mood = sys.argv[2]
-    assert mood in ["train", "val"]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem_size", type=int)
+    parser.add_argument("mood", type=str, choices=["train", "val"])
+    parser.add_argument(
+        "--code-path", type=str, required=True, help="Path to individual's code file"
+    )
+    args = parser.parse_args()
+
+    problem_size = args.problem_size
+    mood = args.mood
+    heuristics = load_heuristic_from_code(args.code_path, POSSIBLE_FUNC_NAMES)
 
     basepath = os.path.dirname(__file__)
     if not os.path.isfile(os.path.join(basepath, "dataset/train50_dataset.npy")):
@@ -68,7 +69,7 @@ if __name__ == "__main__":
 
         objs = []
         for i, (node_pos, demand) in enumerate(zip(node_positions, demands)):
-            obj = solve(node_pos, demand)
+            obj = solve(node_pos, demand, heuristics)
             print(f"[*] Instance {i}: {obj}")
             objs.append(obj.item())
 
@@ -88,7 +89,7 @@ if __name__ == "__main__":
 
             objs = []
             for i, (node_pos, demand) in enumerate(zip(node_positions, demands)):
-                obj = solve(node_pos, demand)
+                obj = solve(node_pos, demand, heuristics)
                 objs.append(obj.item())
 
             print(f"[*] Average for {problem_size}: {np.mean(objs)}")

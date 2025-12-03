@@ -163,7 +163,6 @@ class ReEvo(GeneticAlgorithm[ReEvoConfig, Problem]):
         code = extract_code_from_generator(response)
 
         individual = Individual(name=name, code=code)
-        individual.write_code_to_file(f"{individual_dir}/code.py")
 
         return individual
 

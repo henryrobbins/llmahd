@@ -1,31 +1,24 @@
 # Adapted from ReEvo: https://github.com/ai4co/reevo/blob/main/problems/mkp_aco/eval.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
-from aco import ACO
+import os
+import argparse
+import logging
+
 import numpy as np
 import torch
-import logging
-import sys
-import os
-import sys
+from aco import ACO  # type: ignore
 
-sys.path.insert(0, os.path.abspath(os.path.join(__file__, "../../../")))
-
-import gpt
-from utils import get_heuristic_name
+from llamda.utils import load_heuristic_from_code
 
 
-possible_func_names = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
-
-heuristic_name = get_heuristic_name(gpt, possible_func_names)
-heuristics = getattr(gpt, heuristic_name)
-
+POSSIBLE_FUNC_NAMES = ["heuristics", "heuristics_v1", "heuristics_v2", "heuristics_v3"]
 
 N_ITERATIONS = 50
 N_ANTS = 10
 
 
-def solve(prize: np.ndarray, weight: np.ndarray):
+def solve(prize: np.ndarray, weight: np.ndarray, heuristics):
     n, m = weight.shape
     heu = heuristics(prize.copy(), weight.copy()) + 1e-9
     assert heu.shape == (n,)
@@ -38,14 +31,20 @@ def solve(prize: np.ndarray, weight: np.ndarray):
 
 
 if __name__ == "__main__":
-    import sys
-    import os
 
     print("[*] Running ...")
 
-    problem_size = int(sys.argv[1])
-    mood = sys.argv[2]
-    assert mood in ["train", "val"]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem_size", type=int)
+    parser.add_argument("mood", type=str, choices=["train", "val"])
+    parser.add_argument(
+        "--code-path", type=str, required=True, help="Path to individual's code file"
+    )
+    args = parser.parse_args()
+
+    problem_size = args.problem_size
+    mood = args.mood
+    heuristics = load_heuristic_from_code(args.code_path, POSSIBLE_FUNC_NAMES)
 
     basepath = os.path.dirname(__file__)
     # automacially generate dataset if nonexists
@@ -66,7 +65,7 @@ if __name__ == "__main__":
 
         objs = []
         for i, (prize, weight) in enumerate(zip(prizes, weights)):
-            obj = solve(prize, weight)
+            obj = solve(prize, weight, heuristics)
             print(f"[*] Instance {i}: {obj}")
             objs.append(obj.item())
 
@@ -85,7 +84,7 @@ if __name__ == "__main__":
 
             objs = []
             for i, (prize, weight) in enumerate(zip(prizes, weights)):
-                obj = solve(prize, weight)
+                obj = solve(prize, weight, heuristics)
                 objs.append(obj.item())
 
             print(f"[*] Average for {problem_size}: {np.mean(objs)}")

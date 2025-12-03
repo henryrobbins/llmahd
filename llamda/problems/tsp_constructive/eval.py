@@ -1,22 +1,21 @@
 # Adapted from ReEvo: https://github.com/ai4co/reevo/blob/main/problems/tsp_constructive/eval.py
 # Licensed under the MIT License (see THIRD-PARTY-LICENSES.txt)
 
-import math
-from os import path
-import numpy as np
-import sys
 import argparse
-from scipy.spatial import distance_matrix
 import logging
 from copy import copy
+from os import path
 
-try:
-    from gpt import select_next_node_v2 as select_next_node
-except:
-    from gpt import select_next_node
+import numpy as np
+from scipy.spatial import distance_matrix
+
+from llamda.utils import load_heuristic_from_code
 
 
-def eval_heuristic(node_positions: np.ndarray) -> float:
+POSSIBLE_FUNC_NAMES = ["select_next_node", "select_next_node_v1", "select_next_node_v2"]
+
+
+def eval_heuristic(node_positions: np.ndarray, select_next_node) -> float:
     """
     Generate solution for TSP problem using the GPT-generated heuristic algorithm.
 
@@ -62,11 +61,20 @@ def eval_heuristic(node_positions: np.ndarray) -> float:
 
 
 if __name__ == "__main__":
+
     print("[*] Running ...")
 
-    problem_size = int(sys.argv[1])
-    mood = sys.argv[2]
-    assert mood in ["train", "val"]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("problem_size", type=int)
+    parser.add_argument("mood", type=str, choices=["train", "val"])
+    parser.add_argument(
+        "--code-path", type=str, required=True, help="Path to individual's code file"
+    )
+    args = parser.parse_args()
+
+    problem_size = args.problem_size
+    mood = args.mood
+    select_next_node = load_heuristic_from_code(args.code_path, POSSIBLE_FUNC_NAMES)
 
     basepath = path.join(path.dirname(__file__), "dataset")
     if not path.isfile(path.join(basepath, "train50_dataset.npy")):
@@ -82,7 +90,7 @@ if __name__ == "__main__":
 
         objs = []
         for i in range(n_instances):
-            obj = eval_heuristic(node_positions[i])
+            obj = eval_heuristic(node_positions[i], select_next_node)
             print(f"[*] Instance {i}: {obj}")
             objs.append(obj)
 
@@ -97,6 +105,6 @@ if __name__ == "__main__":
             n_instances = node_positions.shape[0]
             objs = []
             for i in range(n_instances):
-                obj = eval_heuristic(node_positions[i])
+                obj = eval_heuristic(node_positions[i], select_next_node)
                 objs.append(obj)
             print(f"[*] Average for {problem_size}: {np.mean(objs)}")

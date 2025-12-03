@@ -62,13 +62,17 @@ class Evaluator:
                 extra={**self._logging_context(), "individual_name": individual.name},
             )
 
-            stdout_filepath = (
-                output_dir / "individuals" / individual.name / "stdout.txt"
-            )
-            os.makedirs(stdout_filepath.parent, exist_ok=True)
+            individual_dir = output_dir / "individuals" / individual.name
+            os.makedirs(individual_dir, exist_ok=True)
+            stdout_path = individual_dir / "stdout.txt"
+            code_path = individual_dir / "code.py"
+
             self.function_evals += 1
-            # Skip if response is invalid
-            if individual.code is None:
+
+            # Write code to file if present; otherwise, mark as invalid
+            if individual.code is not None:
+                individual.write_code_to_file(str(code_path))
+            else:
                 logger.debug(
                     "There is no code to run for this individual.",
                     extra={
@@ -83,7 +87,7 @@ class Evaluator:
                 continue
 
             try:
-                process = self._run_code(individual)
+                process = self._run_code(str(code_path))
                 inner_runs.append(process)
             except Exception as e:  # If code execution fails
                 logger.exception(
@@ -102,11 +106,7 @@ class Evaluator:
                 continue
             try:
                 stdout_str, _ = inner_run.communicate(timeout=self.timeout)
-                stdout_filepath = (
-                    output_dir / "individuals" / individual.name / "stdout.txt"
-                )
-                os.makedirs(stdout_filepath.parent, exist_ok=True)
-                with open(stdout_filepath, "w") as f:
+                with open(stdout_path, "w") as f:
                     f.write(stdout_str)
             except subprocess.TimeoutExpired:
                 logger.warning(
@@ -181,14 +181,8 @@ class Evaluator:
         )
         return population
 
-    def _run_code(self, individual: T) -> subprocess.Popen:
-        """
-        Write code into a file and run eval script.
-        """
-
-        with open(self.problem.code_path, "w") as file:
-            file.writelines(individual.code + "\n")
-
+    def _run_code(self, code_path: str) -> subprocess.Popen:
+        """Run the evaluation script with the individual's code."""
         process = subprocess.Popen(
             [
                 "python",
@@ -196,12 +190,13 @@ class Evaluator:
                 str(self.problem.eval_path),
                 f"{self.problem.size}",
                 "train",
+                "--code-path",
+                code_path,
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
         )
-
         return process
 
 
