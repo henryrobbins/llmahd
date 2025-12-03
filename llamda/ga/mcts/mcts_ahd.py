@@ -83,6 +83,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
         cur_node: MCTSNode,
         nodes_set: list[MCTSIndividual],
         option: str,
+        name: str,
     ) -> list[MCTSIndividual]:
         if option == "s1":
             path_set: list[MCTSIndividual] = []
@@ -98,7 +99,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 pop=path_set,
                 node=cur_node.raw_info,
                 operator=MCTSOperator.S1,
-                name="s1_expansion",
+                name=name,
             )
         elif option == "e1":
             e1_set = [
@@ -112,7 +113,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 pop=e1_set,
                 node=cur_node.raw_info,
                 operator=MCTSOperator.E1,
-                name="e1_expansion",
+                name=name,
             )
         else:
             self.eval_times, offsprings = self.interface_ec.evolve_algorithm(
@@ -120,7 +121,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 pop=nodes_set,
                 node=cur_node.raw_info,
                 operator=MCTSOperator(option),
-                name=f"{option}_expansion",
+                name=name,
             )
         if offsprings == None:
             logger.warning(f"Timeout emerge, no expanding with action {option}.")
@@ -250,7 +251,10 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 **self._logging_context(),
             },
         )
+
+        iteration = 0
         while self.eval_times < self.config.fe_max:
+
             logger.info(
                 "MCTS-AHD iteration",
                 extra={
@@ -260,6 +264,7 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 },
             )
             cur_node = mcts.root
+
             while len(cur_node.children) > 0 and cur_node.depth < mcts.max_depth:
                 uct_scores = [
                     mcts.uct(node, max(1 - self.eval_times / self.config.fe_max, 0))
@@ -269,13 +274,26 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 if int((cur_node.visits) ** mcts.alpha) > len(cur_node.children):
                     if cur_node == mcts.root:
                         op = "e1"
-                        nodes_set = self.expand(mcts, cur_node, nodes_set, op)
+                        nodes_set = self.expand(
+                            mcts,
+                            cur_node,
+                            nodes_set,
+                            op,
+                            f"iteration{iteration}_root_e1",
+                        )
                     else:
                         # i = random.randint(1, n_op - 1)
                         i = 1
                         op = self.config.operators[i]
-                        nodes_set = self.expand(mcts, cur_node, nodes_set, op)
+                        nodes_set = self.expand(
+                            mcts,
+                            cur_node,
+                            nodes_set,
+                            op,
+                            f"iteration{iteration}_max_utc_e2",
+                        )
                 cur_node = cur_node.children[selected_pair_idx]
+
             for i in range(n_op):
                 op = self.config.operators[i]
                 logger.info(
@@ -288,7 +306,13 @@ class MCTS_AHD(GeneticAlgorithm[AHDConfig, EohProblem]):
                 )
                 op_w = self.config.operator_weights[i]
                 for j in range(op_w):
-                    nodes_set = self.expand(mcts, cur_node, nodes_set, op)
+                    nodes_set = self.expand(
+                        mcts,
+                        cur_node,
+                        nodes_set,
+                        op,
+                        f"iteration{iteration}_{op}_{j}",
+                    )
                 assert len(cur_node.children) == len(cur_node.children_info)
 
             filename = population_checkpoint(
