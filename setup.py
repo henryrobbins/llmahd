@@ -19,6 +19,7 @@ setuptools.setup(
         "numpy",
         "torch",
         "scipy",
+        "scikit-learn",
     ],
     extras_require={
         "dev": [

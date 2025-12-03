@@ -50,7 +50,7 @@ def extract_code_from_generator(content):
     #     code_string = "import torch\n" + code_string
     if "import" not in code_string:
         code_string = (
-            "import numpy as np\nimport random\nimport math\nimport scipy\nimport torch\n"
+            "import numpy as np\nimport random\nimport math\nimport scipy\nimport torch\nimport sklearn\n"
             + code_string
         )
     return code_string
